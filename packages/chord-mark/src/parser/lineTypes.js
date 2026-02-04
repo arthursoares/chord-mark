@@ -4,6 +4,7 @@
  */
 export default {
 	CHORD: 'chord',
+	CHORD_DEFINITION: 'chordDefinition',
 	EMPTY_LINE: 'emptyLine',
 	KEY_DECLARATION: 'keyDeclaration',
 	LYRIC: 'lyric',
