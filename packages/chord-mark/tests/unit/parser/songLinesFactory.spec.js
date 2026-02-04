@@ -15,6 +15,7 @@ import parseChordLine from '../../../src/parser/parseChordLine';
 import parseSectionLabel from '../../../src/parser/parseSectionLabel';
 import parseTimeSignature from '../../../src/parser/parseTimeSignature';
 import parseLyricLine from '../../../src/parser/parseLyricLine';
+import lineTypes from '../../../src/parser/lineTypes';
 
 describe('songLinesFactory', () => {
 	test('Module', () => {
@@ -1273,5 +1274,29 @@ describe('Key declaration', () => {
 		input.forEach(songLines.addLine);
 
 		expect(songLines.asArray()).toEqual(expected);
+	});
+});
+
+describe('Chord definition lines', () => {
+	test('parses chord directive as chordDefinition line', () => {
+		const factory = songLinesFactory();
+		factory.addLine('chord Cmaj7 x32000', 0, ['chord Cmaj7 x32000']);
+		const lines = factory.asArray();
+
+		expect(lines).toHaveLength(1);
+		expect(lines[0].type).toBe(lineTypes.CHORD_DEFINITION);
+		expect(lines[0].model.chordName).toBe('Cmaj7');
+		expect(lines[0].model.frets).toEqual([null, 3, 2, 0, 0, 0]);
+	});
+
+	test('parses multiple chord definitions', () => {
+		const factory = songLinesFactory();
+		const srcLines = ['chord Am7 x02010', 'chord Dm7 xx0211'];
+		srcLines.forEach((line, i) => factory.addLine(line, i, srcLines));
+		const lines = factory.asArray();
+
+		expect(lines).toHaveLength(2);
+		expect(lines[0].model.chordName).toBe('Am7');
+		expect(lines[1].model.chordName).toBe('Dm7');
 	});
 });

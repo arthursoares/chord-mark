@@ -2,12 +2,14 @@
 import _cloneDeep from 'lodash/cloneDeep';
 import lineTypes from './lineTypes';
 
+import isChordDefinition from './matchers/isChordDefinition';
 import isChordLine from './matchers/isChordLine';
 import isChordLineRepeater from './matchers/isChordLineRepeater';
 import isEmptyLine from './matchers/isEmptyLine';
 import isSectionLabel from './matchers/isSectionLabel';
 import isTimeSignature from './matchers/isTimeSignature';
 
+import parseChordDefinition from './parseChordDefinition';
 import parseChordLine from './parseChordLine';
 import parseKeyDeclaration from './parseKeyDeclaration';
 import parseLyricLine from './parseLyricLine';
@@ -108,6 +110,17 @@ export default function songLinesFactory() {
 			string,
 			type: lineTypes.KEY_DECLARATION,
 			model: _cloneDeep(currentKey),
+		};
+	}
+
+	/**
+	 * @returns {SongChordDefinitionLine}
+	 */
+	function getChordDefinitionLine(string) {
+		return {
+			string,
+			type: lineTypes.CHORD_DEFINITION,
+			model: parseChordDefinition(string),
 		};
 	}
 
@@ -361,6 +374,8 @@ export default function songLinesFactory() {
 				line = getEmptyLine(lineSrc);
 			} else if (isKeyDeclaration(lineSrc)) {
 				line = getKeyDeclarationLine(lineSrc);
+			} else if (isChordDefinition(lineSrc)) {
+				line = getChordDefinitionLine(lineSrc);
 			} else {
 				line = getLyricLine(lineSrc);
 			}
