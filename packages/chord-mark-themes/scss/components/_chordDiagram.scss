@@ -1,0 +1,84 @@
+// Chord Diagram Component Styles
+
+.cmChordDictionary {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1em;
+	padding: 1em 0;
+
+	&--top {
+		border-bottom: 1px solid var(--cm-diagram-border-color, #ccc);
+		margin-bottom: 1em;
+	}
+
+	&--bottom {
+		border-top: 1px solid var(--cm-diagram-border-color, #ccc);
+		margin-top: 1em;
+	}
+}
+
+.cmChordDiagram {
+	--cm-diagram-string-color: var(--cm-text-color, #333);
+	--cm-diagram-fret-color: var(--cm-text-color, #333);
+	--cm-diagram-dot-color: var(--cm-chord-color, #000);
+	--cm-diagram-label-color: var(--cm-chord-color, #000);
+	--cm-diagram-background: transparent;
+
+	&-label {
+		fill: var(--cm-diagram-label-color);
+		font-family: inherit;
+		font-weight: bold;
+	}
+
+	&-string,
+	&-fret {
+		stroke: var(--cm-diagram-fret-color);
+		stroke-width: 1;
+	}
+
+	&-nut {
+		stroke: var(--cm-diagram-fret-color);
+		stroke-width: 3;
+	}
+
+	&-dot {
+		fill: var(--cm-diagram-dot-color);
+	}
+
+	&-openString,
+	&-mutedString {
+		fill: var(--cm-diagram-label-color);
+		font-family: inherit;
+	}
+
+	&-fretNumber {
+		fill: var(--cm-diagram-label-color);
+		font-family: inherit;
+	}
+
+	// Size variants
+	&--small {
+		width: 50px;
+		height: 65px;
+	}
+
+	&--medium {
+		width: 70px;
+		height: 90px;
+	}
+
+	&--large {
+		width: 100px;
+		height: 125px;
+	}
+}
+
+// Print-friendly styles
+@media print {
+	.cmChordDiagram {
+		--cm-diagram-string-color: #000;
+		--cm-diagram-fret-color: #000;
+		--cm-diagram-dot-color: #000;
+		--cm-diagram-label-color: #000;
+	}
+}
