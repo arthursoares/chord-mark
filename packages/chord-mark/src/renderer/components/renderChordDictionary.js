@@ -34,8 +34,14 @@ export default function renderChordDictionary(
 			const { frets } = chordDefinitions[chordName];
 			// Parse and normalize the chord name to match how it appears in the song
 			const parsedChord = parseChord(chordName);
-			const normalizedName = parsedChord ? renderChord(parsedChord) : chordName;
-			return renderChordDiagram({ chordName: normalizedName, frets, size });
+			const normalizedName = parsedChord
+				? renderChord(parsedChord)
+				: chordName;
+			return renderChordDiagram({
+				chordName: normalizedName,
+				frets,
+				size,
+			});
 		})
 		.join('');
 

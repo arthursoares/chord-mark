@@ -106,10 +106,13 @@ export default function renderChordDiagram({
 
 	const elements = [];
 
-	elements.push(
-		`<text class="cmChordDiagram-label" x="${width / 2}" y="${fontSize}" ` +
-			`text-anchor="middle" font-size="${fontSize}">${escapeXml(chordName)}</text>`
-	);
+	// Only add label if chordName is provided (not for inline diagrams)
+	if (chordName) {
+		elements.push(
+			`<text class="cmChordDiagram-label" x="${width / 2}" y="${fontSize}" ` +
+				`text-anchor="middle" font-size="${fontSize}">${escapeXml(chordName)}</text>`
+		);
+	}
 
 	if (startFret === 1) {
 		const nutX2 = padding.left + gridWidth;
