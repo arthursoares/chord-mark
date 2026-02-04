@@ -1,4 +1,4 @@
-const render = ({ song }) => {
-	return `<div class="cmSong">${song}</div>`;
+const render = ({ chordDictionaryTop = '', song, chordDictionaryBottom = '' }) => {
+	return `${chordDictionaryTop}<div class="cmSong">${song}</div>${chordDictionaryBottom}`;
 };
 export default render;

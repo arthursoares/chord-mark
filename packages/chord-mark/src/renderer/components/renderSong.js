@@ -12,6 +12,7 @@ import renderLine from './renderLine';
 import renderLyricLine from './renderLyricLine';
 import renderSectionLabelLine from './renderSectionLabel';
 import renderTimeSignature from './renderTimeSignature';
+import renderChordDictionary from './renderChordDictionary';
 
 import songTpl from './tpl/song.js';
 import renderAllSectionsLabels from '../helpers/renderAllSectionLabels';
@@ -47,6 +48,9 @@ import { defaultTimeSignature } from '../../parser/syntax';
  * @param {Boolean} options.useShortNamings
  * @param {Object} [options.windowObject] - A JSDOM window object for using chordmark in NodeJs
  * @param {Boolean} options.wrapChordLyricLines
+ * @param {('none'|'dictionary'|'inline'|'both')} options.showChordDiagrams - controls chord diagram display
+ * @param {('top'|'bottom')} options.diagramPosition - position for dictionary mode
+ * @param {('small'|'medium'|'large')} options.diagramSize - size of chord diagrams
  * @returns {String} rendered HTML
  */
 // eslint-disable-next-line max-lines-per-function,complexity
@@ -60,12 +64,15 @@ export default function renderSong(
 		chartType = 'all',
 		chordSymbolRenderer = false,
 		customRenderer = false,
+		diagramPosition = 'top',
+		diagramSize = 'medium',
 		expandSectionCopy = true,
 		expandSectionMultiply = false,
 		printChordsDuration = 'uneven',
 		printBarSeparators = 'always',
 		printSubBeatDelimiters: shouldPrintSubBeatDelimiters = true,
 		printInlineTimeSignatures: shouldPrintInlineTimeSignatures = true,
+		showChordDiagrams = 'none',
 		simplifyChords = 'none',
 		symbolType = 'chord',
 		transposeValue = 0,
@@ -74,7 +81,7 @@ export default function renderSong(
 		wrapChordLyricLines = false,
 	} = {}
 ) {
-	let { allLines, allKeys } = parsedSong;
+	let { allLines, allKeys, chordDefinitions = {} } = parsedSong;
 
 	let isFirstLyricLineOfSection = false;
 	let contextTimeSignature = defaultTimeSignature.string;
@@ -107,13 +114,34 @@ export default function renderSong(
 
 	const allRenderedLines = renderAllLines();
 
+	// Render chord dictionary
+	let chordDictionaryTop = '';
+	let chordDictionaryBottom = '';
+
+	if (showChordDiagrams === 'dictionary' || showChordDiagrams === 'both') {
+		const dictionaryHtml = renderChordDictionary(chordDefinitions, {
+			position: diagramPosition,
+			size: diagramSize,
+		});
+
+		if (diagramPosition === 'top') {
+			chordDictionaryTop = dictionaryHtml;
+		} else {
+			chordDictionaryBottom = dictionaryHtml;
+		}
+	}
+
 	if (customRenderer) {
 		return customRenderer(allLines, allRenderedLines, {
 			alignChordsWithLyrics,
 			alignBars,
 		});
 	} else {
-		return songTpl({ song: allRenderedLines.join('') });
+		return songTpl({
+			chordDictionaryTop,
+			song: allRenderedLines.join(''),
+			chordDictionaryBottom,
+		});
 	}
 
 	function getSectionWrapperClasses(line) {

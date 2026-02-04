@@ -1138,3 +1138,99 @@ describe('Roman numerals symbols', () => {
 		});
 	});
 });
+
+describe('Chord diagrams', () => {
+	test('renders chord dictionary when showChordDiagrams is "dictionary"', () => {
+		const parsedSong = {
+			allLines: [],
+			allChords: [],
+			allKeys: { auto: null, explicit: [] },
+			chordDefinitions: {
+				C: { frets: [null, 3, 2, 0, 1, 0], source: 'directive' },
+			},
+		};
+
+		const result = renderSong(parsedSong, {
+			showChordDiagrams: 'dictionary',
+		});
+
+		expect(result).toContain('cmChordDictionary');
+		expect(result).toContain('cmChordDiagram');
+	});
+
+	test('does not render chord dictionary when showChordDiagrams is "none"', () => {
+		const parsedSong = {
+			allLines: [],
+			allChords: [],
+			allKeys: { auto: null, explicit: [] },
+			chordDefinitions: {
+				C: { frets: [null, 3, 2, 0, 1, 0], source: 'directive' },
+			},
+		};
+
+		const result = renderSong(parsedSong, {
+			showChordDiagrams: 'none',
+		});
+
+		expect(result).not.toContain('cmChordDictionary');
+	});
+
+	test('respects diagramPosition option', () => {
+		const parsedSong = {
+			allLines: [],
+			allChords: [],
+			allKeys: { auto: null, explicit: [] },
+			chordDefinitions: {
+				C: { frets: [null, 3, 2, 0, 1, 0], source: 'directive' },
+			},
+		};
+
+		const topResult = renderSong(parsedSong, {
+			showChordDiagrams: 'dictionary',
+			diagramPosition: 'top',
+		});
+		const bottomResult = renderSong(parsedSong, {
+			showChordDiagrams: 'dictionary',
+			diagramPosition: 'bottom',
+		});
+
+		expect(topResult).toContain('cmChordDictionary--top');
+		expect(bottomResult).toContain('cmChordDictionary--bottom');
+	});
+
+	test('respects diagramSize option', () => {
+		const parsedSong = {
+			allLines: [],
+			allChords: [],
+			allKeys: { auto: null, explicit: [] },
+			chordDefinitions: {
+				C: { frets: [null, 3, 2, 0, 1, 0], source: 'directive' },
+			},
+		};
+
+		const result = renderSong(parsedSong, {
+			showChordDiagrams: 'dictionary',
+			diagramSize: 'large',
+		});
+
+		expect(result).toContain('cmChordDiagram--large');
+	});
+
+	test('renders chord dictionary when showChordDiagrams is "both"', () => {
+		const parsedSong = {
+			allLines: [],
+			allChords: [],
+			allKeys: { auto: null, explicit: [] },
+			chordDefinitions: {
+				C: { frets: [null, 3, 2, 0, 1, 0], source: 'directive' },
+			},
+		};
+
+		const result = renderSong(parsedSong, {
+			showChordDiagrams: 'both',
+		});
+
+		expect(result).toContain('cmChordDictionary');
+		expect(result).toContain('cmChordDiagram');
+	});
+});
