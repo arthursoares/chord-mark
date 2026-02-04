@@ -10,15 +10,15 @@ Extend chord-mark and chord-chart-studio to support custom chord notation/diagra
 
 ## Design Decisions
 
-| Decision | Choice |
-|----------|--------|
-| Instruments | Guitar only (6 strings) |
+| Decision           | Choice                                       |
+| ------------------ | -------------------------------------------- |
+| Instruments        | Guitar only (6 strings)                      |
 | Voicing definition | Both library directives and inline overrides |
-| Fret notation | Simple fret string (`x32010`) |
-| Diagram placement | Configurable: dictionary, inline, or both |
-| Rendering format | SVG |
-| Library syntax | Directive-based (`#chord`) |
-| Inline syntax | Brackets (`Cmaj7[x32000]`) |
+| Fret notation      | Simple fret string (`x32010`)                |
+| Diagram placement  | Configurable: dictionary, inline, or both    |
+| Rendering format   | SVG                                          |
+| Library syntax     | Directive-based (`#chord`)                   |
+| Inline syntax      | Brackets (`Cmaj7[x32000]`)                   |
 
 ---
 
@@ -35,8 +35,9 @@ A new directive `#chord` defines reusable voicings:
 ```
 
 The format is `#chord <chord-name> <fret-string>` where:
-- `<chord-name>` matches the chord symbol used in chord lines
-- `<fret-string>` is 6 characters (low E to high E), using `0-9` for frets 0-9, `x` for muted, and letters `a-z` for frets 10-35
+
+-   `<chord-name>` matches the chord symbol used in chord lines
+-   `<fret-string>` is 6 characters (low E to high E), using `0-9` for frets 0-9, `x` for muted, and letters `a-z` for frets 10-35
 
 Directives can appear anywhere but typically go at the top of the song, after key/time signature.
 
@@ -53,6 +54,7 @@ This overrides any library definition for just that occurrence.
 ### Matching Behavior
 
 When rendering chord diagrams:
+
 1. Check for inline override first
 2. Fall back to `#chord` directive definition
 3. If no custom voicing defined, the chord appears in output without a diagram
@@ -142,40 +144,40 @@ Add to `renderSong()` options:
 
 New module `renderer/components/renderChordDiagram.js`:
 
-- Input: fret array `[null, 3, 2, 0, 0, 0]` + chord name
-- Output: SVG string with:
-  - 6 vertical lines (strings)
-  - 5 horizontal lines (frets, configurable range)
-  - Dots for finger positions
-  - X marks for muted strings
-  - O marks for open strings
-  - Chord name label above
-  - Fret number indicator if not starting at nut
+-   Input: fret array `[null, 3, 2, 0, 0, 0]` + chord name
+-   Output: SVG string with:
+    -   6 vertical lines (strings)
+    -   5 horizontal lines (frets, configurable range)
+    -   Dots for finger positions
+    -   X marks for muted strings
+    -   O marks for open strings
+    -   Chord name label above
+    -   Fret number indicator if not starting at nut
 
 ### Dictionary Renderer
 
 New component `renderChordDictionary.js`:
 
-- Collects all unique chords that have voicing definitions
-- Renders a grid/flex container of SVG diagrams
-- Wrapped in `<div class="cmChordDictionary">`
+-   Collects all unique chords that have voicing definitions
+-   Renders a grid/flex container of SVG diagrams
+-   Wrapped in `<div class="cmChordDictionary">`
 
 ### Inline Renderer
 
 Extends `renderBarContent.js`:
 
-- If `showChordDiagrams` includes inline, wrap each chord symbol with its diagram above
-- Uses smaller diagram size to fit in flow
+-   If `showChordDiagrams` includes inline, wrap each chord symbol with its diagram above
+-   Uses smaller diagram size to fit in flow
 
 ### HTML Output Structure
 
 ```html
 <div class="cmChordDictionary cmChordDictionary--top">
-  <div class="cmChordDiagram"><!-- SVG --></div>
-  <div class="cmChordDiagram"><!-- SVG --></div>
+	<div class="cmChordDiagram"><!-- SVG --></div>
+	<div class="cmChordDiagram"><!-- SVG --></div>
 </div>
 <div class="cmSong">
-  <!-- existing song content -->
+	<!-- existing song content -->
 </div>
 ```
 
@@ -187,9 +189,9 @@ Extends `renderBarContent.js`:
 
 Add to the existing options panel:
 
-- **Chord Diagrams** dropdown: "None", "Dictionary", "Inline", "Both"
-- **Dictionary Position** toggle: "Top" / "Bottom" (visible when dictionary enabled)
-- **Diagram Size** selector: "Small", "Medium", "Large"
+-   **Chord Diagrams** dropdown: "None", "Dictionary", "Inline", "Both"
+-   **Dictionary Position** toggle: "Top" / "Bottom" (visible when dictionary enabled)
+-   **Diagram Size** selector: "Small", "Medium", "Large"
 
 These options persist per-song in the file's options object.
 
@@ -215,13 +217,13 @@ The SVG diagrams use CSS variables for styling:
 
 ```css
 .cmChordDiagram {
-  --cm-diagram-string-color: #333;
-  --cm-diagram-fret-color: #333;
-  --cm-diagram-dot-color: #000;
-  --cm-diagram-dot-radius: 8px;
-  --cm-diagram-label-color: #000;
-  --cm-diagram-label-font: inherit;
-  --cm-diagram-background: transparent;
+	--cm-diagram-string-color: #333;
+	--cm-diagram-fret-color: #333;
+	--cm-diagram-dot-color: #000;
+	--cm-diagram-dot-radius: 8px;
+	--cm-diagram-label-color: #000;
+	--cm-diagram-label-font: inherit;
+	--cm-diagram-background: transparent;
 }
 ```
 
@@ -229,13 +231,13 @@ The SVG diagrams use CSS variables for styling:
 
 ```html
 <svg class="cmChordDiagram" viewBox="0 0 100 120">
-  <text class="cmChordDiagram-label">Cmaj7</text>
-  <line class="cmChordDiagram-string" />
-  <line class="cmChordDiagram-fret" />
-  <circle class="cmChordDiagram-dot" />
-  <text class="cmChordDiagram-openString">○</text>
-  <text class="cmChordDiagram-mutedString">×</text>
-  <text class="cmChordDiagram-fretNumber">3</text>
+	<text class="cmChordDiagram-label">Cmaj7</text>
+	<line class="cmChordDiagram-string" />
+	<line class="cmChordDiagram-fret" />
+	<circle class="cmChordDiagram-dot" />
+	<text class="cmChordDiagram-openString">○</text>
+	<text class="cmChordDiagram-mutedString">×</text>
+	<text class="cmChordDiagram-fretNumber">3</text>
 </svg>
 ```
 
@@ -254,31 +256,33 @@ Diagrams use solid colors (no gradients) and sufficient contrast for black & whi
 ### Packages Affected
 
 1. **chord-mark** (core changes)
-   - Parser: new `#chord` directive handler, inline `[xxxxxx]` parser
-   - Renderer: new diagram generator, dictionary component, inline integration
-   - Types: extend Song model and rendering options
+
+    - Parser: new `#chord` directive handler, inline `[xxxxxx]` parser
+    - Renderer: new diagram generator, dictionary component, inline integration
+    - Types: extend Song model and rendering options
 
 2. **chord-mark-themes**
-   - Add diagram CSS variables and styles to each theme
+
+    - Add diagram CSS variables and styles to each theme
 
 3. **chord-chart-studio**
-   - Options panel: new diagram settings
-   - State: persist diagram options per file
+    - Options panel: new diagram settings
+    - State: persist diagram options per file
 
 ### Out of Scope for v1
 
-- Other instruments (ukulele, bass, etc.)
-- Visual fretboard editor UI
-- Default voicing library (auto-generating diagrams for undefined chords)
-- Finger number annotations
-- Barré notation
+-   Other instruments (ukulele, bass, etc.)
+-   Visual fretboard editor UI
+-   Default voicing library (auto-generating diagrams for undefined chords)
+-   Finger number annotations
+-   Barré notation
 
 ### Testing Strategy
 
-- Unit tests for fret string parsing (`x32000` → array)
-- Unit tests for SVG generation (snapshot tests)
-- Integration tests for full parse → render flow with diagrams
-- Visual regression tests in Storybook for chord-chart-studio
+-   Unit tests for fret string parsing (`x32000` → array)
+-   Unit tests for SVG generation (snapshot tests)
+-   Integration tests for full parse → render flow with diagrams
+-   Visual regression tests in Storybook for chord-chart-studio
 
 ### Migration
 

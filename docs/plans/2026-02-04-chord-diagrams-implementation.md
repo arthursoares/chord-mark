@@ -13,8 +13,9 @@
 ## Task 1: Add `chordDefinition` Line Type
 
 **Files:**
-- Modify: `packages/chord-mark/src/parser/lineTypes.js`
-- Test: `packages/chord-mark/tests/unit/parser/lineTypes.spec.js` (create)
+
+-   Modify: `packages/chord-mark/src/parser/lineTypes.js`
+-   Test: `packages/chord-mark/tests/unit/parser/lineTypes.spec.js` (create)
 
 **Step 1: Write the failing test**
 
@@ -78,8 +79,9 @@ git commit -m "feat(parser): add CHORD_DEFINITION line type"
 ## Task 2: Create `isChordDefinition` Matcher
 
 **Files:**
-- Create: `packages/chord-mark/src/parser/matchers/isChordDefinition.js`
-- Test: `packages/chord-mark/tests/unit/parser/matchers/isChordDefinition.spec.js`
+
+-   Create: `packages/chord-mark/src/parser/matchers/isChordDefinition.js`
+-   Test: `packages/chord-mark/tests/unit/parser/matchers/isChordDefinition.spec.js`
 
 **Step 1: Write the failing test**
 
@@ -175,8 +177,9 @@ git commit -m "feat(parser): add isChordDefinition matcher"
 ## Task 3: Create `parseChordDefinition` Parser
 
 **Files:**
-- Create: `packages/chord-mark/src/parser/parseChordDefinition.js`
-- Test: `packages/chord-mark/tests/unit/parser/parseChordDefinition.spec.js`
+
+-   Create: `packages/chord-mark/src/parser/parseChordDefinition.js`
+-   Test: `packages/chord-mark/tests/unit/parser/parseChordDefinition.spec.js`
 
 **Step 1: Write the failing test**
 
@@ -334,8 +337,9 @@ git commit -m "feat(parser): add parseChordDefinition function"
 ## Task 4: Integrate Chord Definition into songLinesFactory
 
 **Files:**
-- Modify: `packages/chord-mark/src/parser/songLinesFactory.js`
-- Test: `packages/chord-mark/tests/unit/parser/songLinesFactory.spec.js` (existing)
+
+-   Modify: `packages/chord-mark/src/parser/songLinesFactory.js`
+-   Test: `packages/chord-mark/tests/unit/parser/songLinesFactory.spec.js` (existing)
 
 **Step 1: Write the failing test**
 
@@ -382,12 +386,14 @@ Expected: FAIL with `expect(received).toBe(expected)` (line type is 'lyric' inst
 Modify `packages/chord-mark/src/parser/songLinesFactory.js`:
 
 Add imports at top:
+
 ```javascript
 import isChordDefinition from './matchers/isChordDefinition';
 import parseChordDefinition from './parseChordDefinition';
 ```
 
 Add function inside `songLinesFactory()`:
+
 ```javascript
 /**
  * @returns {SongChordDefinitionLine}
@@ -402,6 +408,7 @@ function getChordDefinitionLine(string) {
 ```
 
 Modify `addLine` function to check for chord definitions before falling through to lyric:
+
 ```javascript
 // In the addLine function, add this condition before the final else (getLyricLine)
 } else if (isChordDefinition(lineSrc)) {
@@ -427,9 +434,10 @@ git commit -m "feat(parser): integrate chord definitions into songLinesFactory"
 ## Task 5: Add chordDefinitions to Song Model
 
 **Files:**
-- Modify: `packages/chord-mark/src/parser/parseSong.js`
-- Create: `packages/chord-mark/src/parser/getAllChordDefinitions.js`
-- Test: `packages/chord-mark/tests/unit/parser/getAllChordDefinitions.spec.js`
+
+-   Modify: `packages/chord-mark/src/parser/parseSong.js`
+-   Create: `packages/chord-mark/src/parser/getAllChordDefinitions.js`
+-   Test: `packages/chord-mark/tests/unit/parser/getAllChordDefinitions.spec.js`
 
 **Step 1: Write the failing test**
 
@@ -550,8 +558,9 @@ git commit -m "feat(parser): add getAllChordDefinitions helper"
 ## Task 6: Integrate chordDefinitions into parseSong
 
 **Files:**
-- Modify: `packages/chord-mark/src/parser/parseSong.js`
-- Test: `packages/chord-mark/tests/integration/parser/parseSong.spec.js` (existing)
+
+-   Modify: `packages/chord-mark/src/parser/parseSong.js`
+-   Test: `packages/chord-mark/tests/integration/parser/parseSong.spec.js` (existing)
 
 **Step 1: Write the failing test**
 
@@ -603,11 +612,13 @@ Expected: FAIL with `expect(received).toBeDefined()` (chordDefinitions is undefi
 Modify `packages/chord-mark/src/parser/parseSong.js`:
 
 Add import:
+
 ```javascript
 import getAllChordDefinitions from './getAllChordDefinitions';
 ```
 
 Modify return statement:
+
 ```javascript
 const chordDefinitions = getAllChordDefinitions(allLines);
 
@@ -637,9 +648,10 @@ git commit -m "feat(parser): include chordDefinitions in parseSong result"
 ## Task 7: Parse Inline Voicing from Chord Symbols
 
 **Files:**
-- Modify: `packages/chord-mark/src/parser/matchers/isChordLine.js`
-- Modify: `packages/chord-mark/src/parser/parseChordLine.js`
-- Test: `packages/chord-mark/tests/unit/parser/parseChordLine.spec.js` (existing)
+
+-   Modify: `packages/chord-mark/src/parser/matchers/isChordLine.js`
+-   Modify: `packages/chord-mark/src/parser/parseChordLine.js`
+-   Test: `packages/chord-mark/tests/unit/parser/parseChordLine.spec.js` (existing)
 
 **Step 1: Write the failing test**
 
@@ -650,7 +662,12 @@ describe('Inline voicing', () => {
 	test('parses chord with inline voicing', () => {
 		const result = parseChordLine('Cmaj7[x32000]');
 		expect(result.allBars[0].allChords[0].inlineVoicing).toEqual([
-			null, 3, 2, 0, 0, 0,
+			null,
+			3,
+			2,
+			0,
+			0,
+			0,
 		]);
 	});
 
@@ -688,6 +705,7 @@ Expected: FAIL
 Modify `packages/chord-mark/src/parser/matchers/isChordLine.js`:
 
 Add helper to extract voicing and clean token:
+
 ```javascript
 // Regex to match inline voicing: [xxxxxx] where x is 0-9, a-o, or x
 const inlineVoicingRegexp = /\[([0-9a-ox]{6})\]$/;
@@ -711,6 +729,7 @@ export function extractInlineVoicing(token) {
 ```
 
 Modify `cleanToken` function to also remove inline voicing before validation:
+
 ```javascript
 export function cleanToken(token) {
 	const { cleanToken: withoutVoicing } = extractInlineVoicing(token);
@@ -723,16 +742,23 @@ export function cleanToken(token) {
 Modify `packages/chord-mark/src/parser/parseChordLine.js`:
 
 Import the new function:
+
 ```javascript
-import { getParseableChordLine, cleanToken, extractInlineVoicing } from './matchers/isChordLine';
+import {
+	getParseableChordLine,
+	cleanToken,
+	extractInlineVoicing,
+} from './matchers/isChordLine';
 ```
 
 In `parseChordToken`, extract and store the inline voicing:
+
 ```javascript
 function parseChordToken(token) {
 	// ... existing code ...
 
-	const { cleanToken: cleanedTokenNoVoicing, voicing: inlineVoicing } = extractInlineVoicing(token);
+	const { cleanToken: cleanedTokenNoVoicing, voicing: inlineVoicing } =
+		extractInlineVoicing(token);
 	cleanedToken = cleanToken(token);
 
 	chord = {
@@ -771,8 +797,9 @@ git commit -m "feat(parser): support inline voicing syntax [xxxxxx] on chords"
 ## Task 8: Create SVG Chord Diagram Renderer
 
 **Files:**
-- Create: `packages/chord-mark/src/renderer/components/renderChordDiagram.js`
-- Test: `packages/chord-mark/tests/unit/renderer/components/renderChordDiagram.spec.js`
+
+-   Create: `packages/chord-mark/src/renderer/components/renderChordDiagram.js`
+-   Test: `packages/chord-mark/tests/unit/renderer/components/renderChordDiagram.spec.js`
 
 **Step 1: Write the failing test**
 
@@ -903,7 +930,11 @@ const NUM_FRETS = 5;
  * @param {ChordDiagramOptions} options
  * @returns {string} SVG string
  */
-export default function renderChordDiagram({ chordName, frets, size = 'medium' }) {
+export default function renderChordDiagram({
+	chordName,
+	frets,
+	size = 'medium',
+}) {
 	const { width, height, fontSize } = SIZES[size] || SIZES.medium;
 	const sizeClass = `cmChordDiagram--${size}`;
 
@@ -1010,9 +1041,10 @@ git commit -m "feat(renderer): add SVG chord diagram renderer"
 ## Task 9: Create Chord Dictionary Renderer
 
 **Files:**
-- Create: `packages/chord-mark/src/renderer/components/renderChordDictionary.js`
-- Create: `packages/chord-mark/src/renderer/components/tpl/chordDictionary.js`
-- Test: `packages/chord-mark/tests/unit/renderer/components/renderChordDictionary.spec.js`
+
+-   Create: `packages/chord-mark/src/renderer/components/renderChordDictionary.js`
+-   Create: `packages/chord-mark/src/renderer/components/tpl/chordDictionary.js`
+-   Test: `packages/chord-mark/tests/unit/renderer/components/renderChordDictionary.spec.js`
 
 **Step 1: Write the failing test**
 
@@ -1060,7 +1092,9 @@ describe('renderChordDictionary', () => {
 		};
 
 		const top = renderChordDictionary(definitions, { position: 'top' });
-		const bottom = renderChordDictionary(definitions, { position: 'bottom' });
+		const bottom = renderChordDictionary(definitions, {
+			position: 'bottom',
+		});
 
 		expect(top).toContain('cmChordDictionary--top');
 		expect(bottom).toContain('cmChordDictionary--bottom');
@@ -1154,9 +1188,10 @@ git commit -m "feat(renderer): add chord dictionary renderer"
 ## Task 10: Integrate Chord Diagrams into renderSong
 
 **Files:**
-- Modify: `packages/chord-mark/src/renderer/components/renderSong.js`
-- Modify: `packages/chord-mark/src/renderer/components/tpl/song.js`
-- Test: `packages/chord-mark/tests/unit/renderer/components/renderSong.spec.js` (existing)
+
+-   Modify: `packages/chord-mark/src/renderer/components/renderSong.js`
+-   Modify: `packages/chord-mark/src/renderer/components/tpl/song.js`
+-   Test: `packages/chord-mark/tests/unit/renderer/components/renderSong.spec.js` (existing)
 
 **Step 1: Write the failing test**
 
@@ -1262,11 +1297,13 @@ export default render;
 Modify `packages/chord-mark/src/renderer/components/renderSong.js`:
 
 Add import:
+
 ```javascript
 import renderChordDictionary from './renderChordDictionary';
 ```
 
 Add new options to function signature:
+
 ```javascript
 export default function renderSong(
 	parsedSong,
@@ -1280,6 +1317,7 @@ export default function renderSong(
 ```
 
 Add chord dictionary rendering before the return:
+
 ```javascript
 let { allLines, allKeys, chordDefinitions = {} } = parsedSong;
 
@@ -1328,8 +1366,9 @@ git commit -m "feat(renderer): integrate chord diagrams into renderSong"
 ## Task 11: Add Chord Diagram Styles to Themes
 
 **Files:**
-- Create: `packages/chord-mark-themes/scss/components/_chordDiagram.scss`
-- Modify: `packages/chord-mark-themes/scss/themes/_common.scss`
+
+-   Create: `packages/chord-mark-themes/scss/components/_chordDiagram.scss`
+-   Modify: `packages/chord-mark-themes/scss/themes/_common.scss`
 
 **Step 1: Create the chord diagram styles**
 
@@ -1427,6 +1466,7 @@ Create `packages/chord-mark-themes/scss/components/_chordDiagram.scss`:
 Modify `packages/chord-mark-themes/scss/themes/_common.scss`:
 
 Add at the end:
+
 ```scss
 @import '../components/chordDiagram';
 ```
@@ -1449,7 +1489,8 @@ git commit -m "feat(themes): add chord diagram styles"
 ## Task 12: Export New Functions from chord-mark
 
 **Files:**
-- Modify: `packages/chord-mark/src/chordMark.js`
+
+-   Modify: `packages/chord-mark/src/chordMark.js`
 
 **Step 1: Write the failing test**
 
@@ -1493,14 +1534,16 @@ git commit -m "test: verify chord-mark exports include CHORD_DEFINITION"
 ## Task 13: Add chord-chart-studio Options
 
 **Files:**
-- Modify: `packages/chord-chart-studio/src/db/options/seed.js`
-- Modify: `packages/chord-chart-studio/src/optionsPanels/rendering/allWidgets.js`
+
+-   Modify: `packages/chord-chart-studio/src/db/options/seed.js`
+-   Modify: `packages/chord-chart-studio/src/optionsPanels/rendering/allWidgets.js`
 
 **Step 1: Add new options to seed**
 
 Modify `packages/chord-chart-studio/src/db/options/seed.js`:
 
 Add to `songFormatting.values` and `songFormatting.defaults`:
+
 ```javascript
 showChordDiagrams: 'none',
 diagramPosition: 'top',
@@ -1512,6 +1555,7 @@ diagramSize: 'medium',
 Modify `packages/chord-chart-studio/src/optionsPanels/rendering/allWidgets.js`:
 
 Add to `preferences.groupWidgetsOrder`:
+
 ```javascript
 'showChordDiagrams',
 'diagramPosition',
@@ -1519,6 +1563,7 @@ Add to `preferences.groupWidgetsOrder`:
 ```
 
 Add to `preferences.allGroupWidgets`:
+
 ```javascript
 showChordDiagrams: {
 	label: 'Chord diagrams',
@@ -1621,7 +1666,8 @@ git commit -m "feat(studio): add chord diagram options to UI"
 ## Task 14: Wire Options to Renderer in chord-chart-studio
 
 **Files:**
-- Find and modify the file that passes options to `renderSong()`
+
+-   Find and modify the file that passes options to `renderSong()`
 
 **Step 1: Locate the renderer integration**
 
@@ -1630,6 +1676,7 @@ Run: `grep -r "renderSong" packages/chord-chart-studio/src --include="*.js" -l`
 **Step 2: Add new options to the renderSong call**
 
 Find where `renderSong` is called and add the new options:
+
 ```javascript
 showChordDiagrams,
 diagramPosition,
@@ -1654,7 +1701,8 @@ git commit -m "feat(studio): wire chord diagram options to renderer"
 ## Task 15: Integration Test
 
 **Files:**
-- Create: `packages/chord-mark/tests/integration/chordDiagrams.spec.js`
+
+-   Create: `packages/chord-mark/tests/integration/chordDiagrams.spec.js`
 
 **Step 1: Write integration test**
 
