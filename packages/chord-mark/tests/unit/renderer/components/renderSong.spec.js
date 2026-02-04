@@ -1233,4 +1233,34 @@ describe('Chord diagrams', () => {
 		expect(result).toContain('cmChordDictionary');
 		expect(result).toContain('cmChordDiagram');
 	});
+
+	test('chord definition lines are not rendered inline', () => {
+		const parsedSong = {
+			allLines: [
+				{
+					type: lineTypes.CHORD_DEFINITION,
+					model: { chordName: 'C', frets: [null, 3, 2, 0, 1, 0] },
+				},
+				{
+					type: lineTypes.CHORD_DEFINITION,
+					model: { chordName: 'Am', frets: [null, 0, 2, 2, 1, 0] },
+				},
+			],
+			allChords: [],
+			allKeys: { auto: null, explicit: [] },
+			chordDefinitions: {
+				C: { frets: [null, 3, 2, 0, 1, 0], source: 'directive' },
+				Am: { frets: [null, 0, 2, 2, 1, 0], source: 'directive' },
+			},
+		};
+
+		const result = renderSong(parsedSong, {
+			showChordDiagrams: 'dictionary',
+		});
+
+		// Chord definition lines should not render as "undefined"
+		expect(result).not.toContain('undefined');
+		// Dictionary should still render
+		expect(result).toContain('cmChordDictionary');
+	});
 });

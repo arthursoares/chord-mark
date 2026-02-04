@@ -307,6 +307,9 @@ export default function renderSong(
 						rendered = renderTimeSignature(line);
 					} else if (line.type === lineTypes.KEY_DECLARATION) {
 						rendered = renderKeyDeclaration(line);
+					} else if (line.type === lineTypes.CHORD_DEFINITION) {
+						// Chord definitions are rendered in the dictionary, not inline
+						rendered = false;
 					} else {
 						rendered = renderLyricLine(line, {
 							alignChordsWithLyrics,
