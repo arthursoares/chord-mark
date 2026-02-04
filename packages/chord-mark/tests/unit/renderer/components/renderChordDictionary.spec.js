@@ -38,11 +38,15 @@ describe('renderChordDictionary', () => {
 			C: { frets: [null, 3, 2, 0, 1, 0], source: 'directive' },
 		};
 
-		const top = renderChordDictionary(definitions, { position: 'top' });
-		const bottom = renderChordDictionary(definitions, { position: 'bottom' });
+		const topResult = renderChordDictionary(definitions, {
+			position: 'top',
+		});
+		const bottomResult = renderChordDictionary(definitions, {
+			position: 'bottom',
+		});
 
-		expect(top).toContain('cmChordDictionary--top');
-		expect(bottom).toContain('cmChordDictionary--bottom');
+		expect(topResult).toContain('cmChordDictionary--top');
+		expect(bottomResult).toContain('cmChordDictionary--bottom');
 	});
 
 	test('respects size option', () => {

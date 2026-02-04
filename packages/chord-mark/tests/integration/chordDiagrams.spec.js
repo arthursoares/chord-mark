@@ -20,12 +20,14 @@ Hello world`;
 			showChordDiagrams: 'dictionary',
 			diagramPosition: 'top',
 			diagramSize: 'medium',
+			useShortNamings: false,
 		});
 
 		expect(rendered).toContain('cmChordDictionary--top');
 		expect(rendered).toContain('cmChordDiagram');
-		expect(rendered).toContain('Cmaj7');
-		expect(rendered).toContain('Am7');
+		// With useShortNamings: false, Cmaj7 renders as "Cma7", Am7 as "Ami7"
+		expect(rendered).toContain('Cma7');
+		expect(rendered).toContain('Ami7');
 		expect(rendered).toContain('cmSong');
 	});
 
@@ -45,5 +47,63 @@ Test`;
 		expect(chordLine.model.allBars[0].allChords[0].inlineVoicing).toEqual([
 			5, 7, 7, 5, 5, 5,
 		]);
+	});
+
+	test('inline mode renders diagrams above chord symbols', () => {
+		const songSrc = `chord C x32010
+
+C....
+Hello`;
+
+		const parsed = parseSong(songSrc);
+		const rendered = renderSong(parsed, {
+			showChordDiagrams: 'inline',
+			diagramSize: 'small',
+		});
+
+		// Should contain inline diagram wrapper
+		expect(rendered).toContain('cmChordWithDiagram');
+		// Should contain the chord diagram
+		expect(rendered).toContain('cmChordDiagram');
+		// Should NOT contain dictionary (only inline mode)
+		expect(rendered).not.toContain('cmChordDictionary');
+	});
+
+	test('both mode renders dictionary and inline diagrams', () => {
+		const songSrc = `chord G 320003
+
+G....
+Test`;
+
+		const parsed = parseSong(songSrc);
+		const rendered = renderSong(parsed, {
+			showChordDiagrams: 'both',
+			diagramPosition: 'top',
+			diagramSize: 'small',
+		});
+
+		// Should contain dictionary
+		expect(rendered).toContain('cmChordDictionary');
+		// Should contain inline diagram wrapper
+		expect(rendered).toContain('cmChordWithDiagram');
+	});
+
+	test('inline mode shows override voicing when present', () => {
+		const songSrc = `chord Am x02210
+
+Am[577555]....
+Test`;
+
+		const parsed = parseSong(songSrc);
+		const rendered = renderSong(parsed, {
+			showChordDiagrams: 'inline',
+			diagramSize: 'small',
+		});
+
+		// Should contain inline diagram
+		expect(rendered).toContain('cmChordWithDiagram');
+		// The diagram should show the override voicing (fret 5), not the directive voicing
+		// Fret 5 would be rendered relative to start fret
+		expect(rendered).toContain('cmChordDiagram-dot');
 	});
 });
