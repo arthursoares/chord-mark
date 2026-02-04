@@ -122,6 +122,7 @@ export default function renderSong(
 		const dictionaryHtml = renderChordDictionary(chordDefinitions, {
 			position: diagramPosition,
 			size: diagramSize,
+			useShortNamings,
 		});
 
 		if (diagramPosition === 'top') {

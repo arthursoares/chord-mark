@@ -1,3 +1,4 @@
+import { chordRendererFactory, chordParserFactory } from 'chord-symbol';
 import renderChordDiagram from './renderChordDiagram';
 import chordDictionaryTpl from './tpl/chordDictionary';
 
@@ -5,6 +6,7 @@ import chordDictionaryTpl from './tpl/chordDictionary';
  * @typedef {Object} RenderChordDictionaryOptions
  * @property {('top'|'bottom')} [position='top']
  * @property {('small'|'medium'|'large')} [size='medium']
+ * @property {boolean} [useShortNamings=true]
  */
 
 /**
@@ -15,7 +17,7 @@ import chordDictionaryTpl from './tpl/chordDictionary';
  */
 export default function renderChordDictionary(
 	chordDefinitions,
-	{ position = 'top', size = 'medium' } = {}
+	{ position = 'top', size = 'medium', useShortNamings = true } = {}
 ) {
 	const chordNames = Object.keys(chordDefinitions);
 
@@ -23,10 +25,17 @@ export default function renderChordDictionary(
 		return '';
 	}
 
+	// Create parser and renderer to normalize chord names consistently with song rendering
+	const parseChord = chordParserFactory();
+	const renderChord = chordRendererFactory({ useShortNamings });
+
 	const diagrams = chordNames
 		.map((chordName) => {
 			const { frets } = chordDefinitions[chordName];
-			return renderChordDiagram({ chordName, frets, size });
+			// Parse and normalize the chord name to match how it appears in the song
+			const parsedChord = parseChord(chordName);
+			const normalizedName = parsedChord ? renderChord(parsedChord) : chordName;
+			return renderChordDiagram({ chordName: normalizedName, frets, size });
 		})
 		.join('');
 
