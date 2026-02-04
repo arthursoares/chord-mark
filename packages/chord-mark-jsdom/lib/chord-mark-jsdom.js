@@ -159701,22 +159701,34 @@ var cloneDeep_default = /*#__PURE__*/__webpack_require__.n(cloneDeep);
  */
 /* harmony default export */ const parser_lineTypes = ({
   CHORD: 'chord',
+  CHORD_DEFINITION: 'chordDefinition',
   EMPTY_LINE: 'emptyLine',
   KEY_DECLARATION: 'keyDeclaration',
   LYRIC: 'lyric',
   SECTION_LABEL: 'sectionLabel',
   TIME_SIGNATURE: 'timeSignature'
 });
-// EXTERNAL MODULE: ../../node_modules/lodash/escapeRegExp.js
-var escapeRegExp = __webpack_require__(83985);
-var escapeRegExp_default = /*#__PURE__*/__webpack_require__.n(escapeRegExp);
 ;// CONCATENATED MODULE: ../chord-mark/src/parser/helper/clearSpaces.js
 function clearSpaces(string) {
   return string.replace(/\t+/g, ' ').replace(/  +/g, ' ').trim();
 }
-;// CONCATENATED MODULE: ../chord-mark/src/parser/matchers/isTimeSignatureString.js
-const allowedTimeSignatures = ['2/2', '3/2', '4/2', '2/4', '3/4', '4/4', '5/4', '6/4', '7/4', '9/4', '10/4', '3/8', '4/8', '5/8', '6/8', '7/8', '9/8', '12/8'];
-function isTimeSignatureString(string) {
+;// CONCATENATED MODULE: ../chord-mark/src/parser/matchers/isChordDefinition.js
+
+
+// Fret chars: 0-9 for frets 0-9, a-o for frets 10-24, x for muted
+const fretCharPattern = '[0-9a-ox]';
+const fretStringPattern = `${fretCharPattern}{6}`;
+const chordDefinitionRegexp = new RegExp(`^chord\\s+(.+?)\\s+(${fretStringPattern})$`);
+function isChordDefinition(string) {
+  const cleaned = clearSpaces(string);
+  return chordDefinitionRegexp.test(cleaned);
+}
+// EXTERNAL MODULE: ../../node_modules/lodash/escapeRegExp.js
+var escapeRegExp = __webpack_require__(83985);
+var escapeRegExp_default = /*#__PURE__*/__webpack_require__.n(escapeRegExp);
+;// CONCATENATED MODULE: ../chord-mark/src/parser/matchers/isTimeSignature.js
+const allowedTimeSignatures = ['1/2', '2/2', '3/2', '4/2', '1/4', '2/4', '3/4', '4/4', '5/4', '6/4', '7/4', '9/4', '10/4', '3/8', '4/8', '5/8', '6/8', '7/8', '9/8', '12/8'];
+function isTimeSignature(string) {
   return allowedTimeSignatures.includes(string);
 }
 ;// CONCATENATED MODULE: ../chord-mark/src/parser/parseTimeSignature.js
@@ -159736,7 +159748,7 @@ function isTimeSignatureString(string) {
  * @returns {TimeSignature}
  */
 function parseTimeSignature(string) {
-  if (!isTimeSignatureString(string)) {
+  if (!isTimeSignature(string)) {
     throw new TypeError('Expected time signature string, received: ' + string);
   }
   const array = string.split('/');
@@ -162270,6 +162282,28 @@ function isChord(potentialChord) {
 const chordBeatCountSymbols = new RegExp(escapeRegExp_default()(syntax.chordBeatCount) + '*$', 'g');
 const barRepeatSymbols = new RegExp('^' + escapeRegExp_default()(syntax.barRepeat) + '+$');
 
+// Regex to match inline voicing: [xxxxxx] where x is 0-9, a-o, or x
+// Allows beat markers (.) after the voicing
+const inlineVoicingRegexp = /\[([0-9a-ox]{6})\](\.*)$/;
+function extractInlineVoicing(token) {
+  const match = token.match(inlineVoicingRegexp);
+  if (!match) return {
+    cleanToken: token,
+    voicing: undefined
+  };
+  const voicingStr = match[1];
+  const beatMarkers = match[2] || '';
+  const voicing = voicingStr.split('').map(char => {
+    if (char === 'x') return null;
+    if (char >= '0' && char <= '9') return parseInt(char, 10);
+    return char.charCodeAt(0) - 'a'.charCodeAt(0) + 10;
+  });
+  return {
+    cleanToken: token.replace(inlineVoicingRegexp, beatMarkers),
+    voicing
+  };
+}
+
 /**
  * Check if the given line only contains chords and allowed characters.
  * The parsing might still fail at a later stage if some rules are not properly enforced,
@@ -162280,14 +162314,17 @@ const barRepeatSymbols = new RegExp('^' + escapeRegExp_default()(syntax.barRepea
 function isChordLine(line = '') {
   return clearSpaces(getParseableChordLine(line)).split(' ').every((potentialChordToken, index, allTokens) => {
     const clean = cleanToken(potentialChordToken);
-    return isChord(clean) || potentialChordToken.match(barRepeatSymbols) && index > 0 || clean === syntax.noChord || isTimeSignatureString(potentialChordToken) && allTokens.length > 1;
+    return isChord(clean) || potentialChordToken.match(barRepeatSymbols) && index > 0 || clean === syntax.noChord || isTimeSignature(potentialChordToken) && allTokens.length > 1;
   });
 }
 const getParseableChordLine = chordLine => {
   return chordLine.replaceAll('add ', 'add');
 };
 const cleanToken = token => {
-  return removeSubBeatDelimiters(removeBeatCount(token));
+  const {
+    cleanToken: withoutVoicing
+  } = extractInlineVoicing(token);
+  return removeSubBeatDelimiters(removeBeatCount(withoutVoicing));
 };
 const removeBeatCount = token => {
   return token.replace(chordBeatCountSymbols, '');
@@ -162323,6 +162360,47 @@ const sectionLabelRegexp = new RegExp('^' + escapeRegExp_default()(syntax.sectio
 function isSectionLabel(string) {
   const found = clearSpaces(string).match(sectionLabelRegexp);
   return found !== null;
+}
+;// CONCATENATED MODULE: ../chord-mark/src/parser/parseChordDefinition.js
+
+
+
+/**
+ * Parse a fret character to a number or null
+ * @param {string} char - single character (0-9, a-o, x)
+ * @returns {number|null}
+ */
+function parseFretChar(char) {
+  if (char === 'x') return null;
+  if (char >= '0' && char <= '9') return parseInt(char, 10);
+  // a=10, b=11, ..., o=24
+  return char.charCodeAt(0) - 'a'.charCodeAt(0) + 10;
+}
+
+/**
+ * Parse a fret string into an array of fret numbers
+ * @param {string} fretString - 6 character fret string
+ * @returns {(number|null)[]}
+ */
+function parseFretString(fretString) {
+  return fretString.split('').map(parseFretChar);
+}
+
+/**
+ * @param {String} string
+ * @returns {{chordName: string, frets: (number|null)[]}}
+ */
+function parseChordDefinition(string) {
+  if (!isChordDefinition(string)) {
+    throw new TypeError('Expected chord definition, received: ' + string);
+  }
+  const found = clearSpaces(string).match(chordDefinitionRegexp);
+  const chordName = found[1];
+  const fretString = found[2];
+  return {
+    chordName,
+    frets: parseFretString(fretString)
+  };
 }
 ;// CONCATENATED MODULE: ../chord-mark/src/parser/parseChord.js
 
@@ -162507,7 +162585,7 @@ function parseChordLine(chordLine, {
   allTokens.forEach((token, tokenIndex) => {
     if (token.match(parseChordLine_barRepeatSymbols)) {
       repeatPreviousBars(token);
-    } else if (isTimeSignatureString(token)) {
+    } else if (isTimeSignature(token)) {
       changeTimeSignature(token);
     } else {
       parseChordToken(token);
@@ -162549,6 +162627,9 @@ function parseChordLine(chordLine, {
       checkSubBeatGroupToken(chordLine, token);
       updateSubBeatGroupsChordCount(token);
     }
+    const {
+      voicing: inlineVoicing
+    } = extractInlineVoicing(token);
     cleanedToken = cleanToken(token);
     chord = {
       string: token,
@@ -162557,10 +162638,16 @@ function parseChordLine(chordLine, {
       beat: currentBeatCount + 1,
       isInSubBeatGroup
     };
+    if (inlineVoicing) {
+      chord.inlineVoicing = inlineVoicing;
+    }
     currentBeatCount += chord.duration;
     checkInvalidChordRepetition(bar, chord);
     bar.allChords.push(chord);
-    if (token.endsWith(syntax.subBeatCloser)) {
+
+    // Only check for sub-beat closer if this token doesn't have an inline voicing
+    // (inline voicing also ends with ] but shouldn't be treated as sub-beat closer)
+    if (token.endsWith(syntax.subBeatCloser) && !inlineVoicing) {
       checkSubBeatGroupChordCount(token);
       isInSubBeatGroup = false;
       subBeatGroupIndex++;
@@ -163102,6 +163189,8 @@ function getNthOfLabel(allLines, label, n) {
 
 
 
+
+
 const songLinesFactory_defaultTimeSignature = '4/4';
 
 /**
@@ -163185,6 +163274,17 @@ function songLinesFactory() {
       string,
       type: parser_lineTypes.KEY_DECLARATION,
       model: cloneDeep_default()(currentKey)
+    };
+  }
+
+  /**
+   * @returns {SongChordDefinitionLine}
+   */
+  function getChordDefinitionLine(string) {
+    return {
+      string,
+      type: parser_lineTypes.CHORD_DEFINITION,
+      model: parseChordDefinition(string)
     };
   }
 
@@ -163337,7 +163437,7 @@ function songLinesFactory() {
     if (nextSectionIndex === 0) {
       return true;
     }
-    const currentSectionContent = remainingLines.slice(0, nextSectionIndex !== -1 ? nextSectionIndex : undefined).filter(line => !(isTimeSignatureString(line) || isKeyDeclaration(line) || isEmptyLine(line)));
+    const currentSectionContent = remainingLines.slice(0, nextSectionIndex !== -1 ? nextSectionIndex : undefined).filter(line => !(isTimeSignature(line) || isKeyDeclaration(line) || isEmptyLine(line)));
     return currentSectionContent.length === 0;
   }
   function multiplySection(lineIndex, allSrcLines) {
@@ -163365,7 +163465,7 @@ function songLinesFactory() {
   return {
     addLine(lineSrc, lineIndex, allSrcLines) {
       let line;
-      if (isTimeSignatureString(lineSrc)) {
+      if (isTimeSignature(lineSrc)) {
         line = getTimeSignatureLine(lineSrc);
       } else if (isSectionLabel(lineSrc)) {
         line = getSectionLabelLine(lineSrc, lineIndex, allSrcLines);
@@ -163377,6 +163477,8 @@ function songLinesFactory() {
         line = getEmptyLine(lineSrc);
       } else if (isKeyDeclaration(lineSrc)) {
         line = getKeyDeclarationLine(lineSrc);
+      } else if (isChordDefinition(lineSrc)) {
+        line = getChordDefinitionLine(lineSrc);
       } else {
         line = getLyricLine(lineSrc);
       }
@@ -163423,6 +163525,26 @@ function shouldPositionChords(line, nextLine) {
 function endsWithEmptyLine(allLines) {
   const lastLine = allLines[allLines.length - 1];
   return lastLine.type === parser_lineTypes.EMPTY_LINE;
+}
+;// CONCATENATED MODULE: ../chord-mark/src/parser/getAllChordDefinitions.js
+
+
+/**
+ * Extract all chord definitions from parsed song lines
+ * @param {SongLine[]} allLines
+ * @returns {Object.<string, {frets: (number|null)[], source: string}>}
+ */
+function getAllChordDefinitions(allLines) {
+  const definitions = {};
+  allLines.forEach(line => {
+    if (line.type === parser_lineTypes.CHORD_DEFINITION) {
+      definitions[line.model.chordName] = {
+        frets: line.model.frets,
+        source: 'directive'
+      };
+    }
+  });
+  return definitions;
 }
 ;// CONCATENATED MODULE: ../chord-mark/src/parser/getAllChordsInSong.js
 
@@ -163497,6 +163619,7 @@ function getAllKeysInSong(allLines, allChords) {
 
 
 
+
 /**
  * @typedef {Object} Song
  * @type {Object}
@@ -163540,10 +163663,12 @@ function parseSong(songSrc, {
   const allLines = songLines.asArray();
   const allChords = getAllChordsInSong(allLines);
   const allKeys = getAllKeysInSong(allLines, allChords);
+  const chordDefinitions = getAllChordDefinitions(allLines);
   return {
     allLines,
     allChords,
-    allKeys
+    allKeys,
+    chordDefinitions
   };
 }
 ;// CONCATENATED MODULE: ../chord-mark/src/renderer/symbols.js
@@ -163921,7 +164046,8 @@ const chordSymbol_render = ({
   chordDuration,
   subBeatGroupOpener,
   subBeatGroupCloser,
-  numeralType
+  numeralType,
+  inlineDiagram
 }) => {
   const groupOpen = subBeatGroupOpener ? `<span class="cmSubBeatGroupOpener">${subBeatGroupOpener}</span>` : '';
   const groupClose = subBeatGroupCloser ? `<span class="cmSubBeatGroupCloser">${subBeatGroupCloser}</span>` : '';
@@ -163929,36 +164055,198 @@ const chordSymbol_render = ({
   if (numeralType) {
     symbolClasses.push(`cmRomanNumeral`, `cmRomanNumeral-${numeralType}`);
   }
-  return `${groupOpen}<span class="${symbolClasses.join(' ')}">${chordSymbol}${chordDuration ? `<span class="cmChordDuration">${chordDuration}</span>` : ''}</span>${groupClose}`;
+  if (inlineDiagram) {
+    symbolClasses.push('cmChordSymbol--withDiagram');
+  }
+  const symbolHtml = `<span class="${symbolClasses.join(' ')}">${chordSymbol}${chordDuration ? `<span class="cmChordDuration">${chordDuration}</span>` : ''}</span>`;
+  if (inlineDiagram) {
+    return `${groupOpen}<span class="cmChordWithDiagram">${inlineDiagram}${symbolHtml}</span>${groupClose}`;
+  }
+  return `${groupOpen}${symbolHtml}${groupClose}`;
 };
 /* harmony default export */ const tpl_chordSymbol = (chordSymbol_render);
+;// CONCATENATED MODULE: ../chord-mark/src/renderer/components/renderChordDiagram.js
+const SIZES = {
+  small: {
+    width: 50,
+    height: 80,
+    fontSize: 10
+  },
+  medium: {
+    width: 70,
+    height: 105,
+    fontSize: 12
+  },
+  large: {
+    width: 100,
+    height: 140,
+    fontSize: 16
+  }
+};
+const NUM_STRINGS = 6;
+const NUM_FRETS = 5;
+function escapeXml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function calculateStartFret(frets) {
+  const nonNullFrets = frets.filter(f => f !== null && f > 0);
+  const minFret = nonNullFrets.length > 0 ? Math.min(...nonNullFrets) : 1;
+  const maxFret = nonNullFrets.length > 0 ? Math.max(...nonNullFrets) : 1;
+  return maxFret <= NUM_FRETS ? 1 : minFret;
+}
+function renderGridLines({
+  padding,
+  gridWidth,
+  gridHeight,
+  stringSpacing,
+  fretSpacing
+}) {
+  const elements = [];
+  for (let i = 0; i <= NUM_FRETS; i++) {
+    const y = padding.top + i * fretSpacing;
+    const x2 = padding.left + gridWidth;
+    elements.push(`<line class="cmChordDiagram-fret" x1="${padding.left}" y1="${y}" x2="${x2}" y2="${y}"/>`);
+  }
+  for (let i = 0; i < NUM_STRINGS; i++) {
+    const x = padding.left + i * stringSpacing;
+    const y2 = padding.top + gridHeight;
+    elements.push(`<line class="cmChordDiagram-string" x1="${x}" y1="${padding.top}" x2="${x}" y2="${y2}"/>`);
+  }
+  return elements;
+}
+function renderFingerPositions({
+  frets,
+  padding,
+  stringSpacing,
+  fretSpacing,
+  fontSize,
+  startFret
+}) {
+  const elements = [];
+  frets.forEach((fret, stringIndex) => {
+    const x = padding.left + stringIndex * stringSpacing;
+    const markerY = padding.top - 8;
+    if (fret === null) {
+      elements.push(`<text class="cmChordDiagram-mutedString" x="${x}" y="${markerY}" ` + `text-anchor="middle" font-size="${fontSize}">×</text>`);
+    } else if (fret === 0) {
+      elements.push(`<text class="cmChordDiagram-openString" x="${x}" y="${markerY}" ` + `text-anchor="middle" font-size="${fontSize}">○</text>`);
+    } else {
+      const relativeFret = fret - startFret + 1;
+      const y = padding.top + (relativeFret - 0.5) * fretSpacing;
+      const dotRadius = fretSpacing * 0.35;
+      elements.push(`<circle class="cmChordDiagram-dot" cx="${x}" cy="${y}" r="${dotRadius}"/>`);
+    }
+  });
+  return elements;
+}
+
+/**
+ * Render a guitar chord diagram as SVG
+ * @param {Object} options
+ * @param {string} options.chordName
+ * @param {(number|null)[]} options.frets - array of 6 fret numbers, null for muted
+ * @param {('small'|'medium'|'large')} [options.size='medium']
+ * @returns {string} SVG string
+ */
+function renderChordDiagram({
+  chordName,
+  frets,
+  size = 'medium'
+}) {
+  const {
+    width,
+    height,
+    fontSize
+  } = SIZES[size] || SIZES.medium;
+  const sizeClass = `cmChordDiagram--${size}`;
+  const padding = {
+    top: 35,
+    left: 10,
+    right: 10,
+    bottom: 10
+  };
+  const gridWidth = width - padding.left - padding.right;
+  const gridHeight = height - padding.top - padding.bottom;
+  const stringSpacing = gridWidth / (NUM_STRINGS - 1);
+  const fretSpacing = gridHeight / NUM_FRETS;
+  const startFret = calculateStartFret(frets);
+  const grid = {
+    padding,
+    gridWidth,
+    gridHeight,
+    stringSpacing,
+    fretSpacing
+  };
+  const elements = [];
+
+  // Only add label if chordName is provided (not for inline diagrams)
+  if (chordName) {
+    elements.push(`<text class="cmChordDiagram-label" x="${width / 2}" y="${fontSize}" ` + `text-anchor="middle" font-size="${fontSize}">${escapeXml(chordName)}</text>`);
+  }
+  if (startFret === 1) {
+    const nutX2 = padding.left + gridWidth;
+    elements.push(`<line class="cmChordDiagram-nut" x1="${padding.left}" y1="${padding.top}" ` + `x2="${nutX2}" y2="${padding.top}" stroke-width="3"/>`);
+  } else {
+    const fretNumY = padding.top + fretSpacing / 2 + 4;
+    elements.push(`<text class="cmChordDiagram-fretNumber" x="${padding.left - 5}" y="${fretNumY}" ` + `text-anchor="end" font-size="${fontSize * 0.8}">${startFret}</text>`);
+  }
+  elements.push(...renderGridLines(grid));
+  elements.push(...renderFingerPositions({
+    ...grid,
+    frets,
+    fontSize,
+    startFret
+  }));
+  return `<svg class="cmChordDiagram ${sizeClass}" viewBox="0 0 ${width} ${height}" ` + `width="${width}" height="${height}">${elements.join('')}</svg>`;
+}
 ;// CONCATENATED MODULE: ../chord-mark/src/renderer/components/renderChordSymbol.js
 
 
 
+function isValidVoicing(voicing) {
+  return voicing && Array.isArray(voicing) && voicing.length === 6;
+}
+function getInlineDiagram(voicing, diagramSize) {
+  if (!isValidVoicing(voicing)) {
+    return '';
+  }
+  return renderChordDiagram({
+    chordName: '',
+    // No label for inline diagrams
+    frets: voicing,
+    size: diagramSize
+  });
+}
+function getChordSymbol(chord, shouldPrintChordSymbol) {
+  return shouldPrintChordSymbol ? chord.symbol : chord.model.numeral.symbol;
+}
+function shouldUseChordSymbol(chord, symbolType) {
+  return symbolType === 'chord' || chord.model === symbols.barRepeat || chord.model === symbols.noChordSymbol;
+}
+
 /**
  * @param {ChordLineChord} chord
  * @param {Object} options
- * @param {Boolean} options.shouldPrintChordsDuration
- * @param {Boolean} options.shouldPrintSubBeatOpener
- * @param {Boolean} options.shouldPrintSubBeatCloser
- * @param {('chord'|'roman')} options.symbolType
  * @returns {String} rendered html
  */
 function renderChordSymbol(chord, {
   shouldPrintChordsDuration = false,
   shouldPrintSubBeatOpener = false,
   shouldPrintSubBeatCloser = false,
-  symbolType = 'chord'
+  symbolType = 'chord',
+  voicing = undefined,
+  diagramSize = 'small'
 }) {
-  const shouldPrintChordSymbol = symbolType === 'chord' || chord.model === symbols.barRepeat || chord.model === symbols.noChordSymbol;
-  const chordSymbol = shouldPrintChordSymbol ? chord.symbol : chord.model.numeral.symbol;
+  const shouldPrintChordSymbol = shouldUseChordSymbol(chord, symbolType);
+  const chordSymbol = getChordSymbol(chord, shouldPrintChordSymbol);
+  const inlineDiagram = getInlineDiagram(voicing, diagramSize);
   return tpl_chordSymbol({
     chordSymbol,
     chordDuration: shouldPrintChordsDuration ? symbols.chordBeat.repeat(chord.duration) : false,
     subBeatGroupOpener: shouldPrintSubBeatOpener ? symbols.subBeatGroupOpener : '',
     subBeatGroupCloser: shouldPrintSubBeatCloser ? symbols.subBeatGroupCloser : '',
-    numeralType: !shouldPrintChordSymbol ? chord.model.numeral.type : ''
+    numeralType: shouldPrintChordSymbol ? '' : chord.model.numeral.type,
+    inlineDiagram
   });
 }
 ;// CONCATENATED MODULE: ../chord-mark/src/renderer/components/tpl/timeSignature.js
@@ -163996,6 +164284,21 @@ const barContent_render = ({
 const renderBarContent_space = ' ';
 const defaultSpacesWithin = 0;
 const defaultSpacesAfter = 2;
+function getVoicing(chord, chordDefinitions) {
+  // Priority: inline voicing override > chord definition
+  if (chord.inlineVoicing) {
+    return chord.inlineVoicing;
+  }
+  // chord.model.input is an object with a symbol property
+  const chordName = chord.model?.input?.symbol;
+  if (chordName) {
+    const def = chordDefinitions[chordName];
+    if (def && def.frets) {
+      return def.frets;
+    }
+  }
+  return undefined;
+}
 
 /**
  * @param {Bar} bar
@@ -164004,13 +164307,19 @@ const defaultSpacesAfter = 2;
  * @param {Boolean} shouldPrintSubBeatDelimiters
  * @param {Boolean} shouldPrintTimeSignature
  * @param {('chord'|'roman')} options.symbolType
+ * @param {Boolean} options.showInlineDiagrams - whether to show inline chord diagrams
+ * @param {Object} options.chordDefinitions - chord definitions for looking up voicings
+ * @param {('small'|'medium'|'large')} options.diagramSize - size of inline diagrams
  * @returns {String} rendered html
  */
 function renderBarContent(bar, isLastBar = false, {
   shouldPrintBarSeparators = true,
   shouldPrintSubBeatDelimiters = true,
   shouldPrintTimeSignature = false,
-  symbolType = 'chord'
+  symbolType = 'chord',
+  showInlineDiagrams = false,
+  chordDefinitions = {},
+  diagramSize = 'small'
 } = {}) {
   let spacesWithin = 0;
   let spacesAfter = 0;
@@ -164021,18 +164330,19 @@ function renderBarContent(bar, isLastBar = false, {
   barContent += bar.allChords.reduce((rendering, chord, i) => {
     spacesWithin = isFinite_default()(chord.spacesWithin) ? chord.spacesWithin : defaultSpacesWithin;
     spacesAfter = isFinite_default()(chord.spacesAfter) ? chord.spacesAfter : defaultSpacesAfter;
+    const voicing = showInlineDiagrams ? getVoicing(chord, chordDefinitions) : undefined;
     rendering += renderChordSymbol(chord, {
       shouldPrintChordsDuration: chord.isInSubBeatGroup ? false : bar.shouldPrintChordsDuration,
       shouldPrintSubBeatOpener: shouldPrintSubBeatDelimiters && chord.isFirstOfSubBeat,
       shouldPrintSubBeatCloser: shouldPrintSubBeatDelimiters && chord.isLastOfSubBeat,
-      symbolType
+      symbolType,
+      voicing,
+      diagramSize
     });
-    if (shouldPrintChordSpaces()) {
+    const isLastChordOfLine = isLastChordOfBar(bar, i) && isLastBar;
+    const shouldPrintSpaces = !isLastChordOfLine || isLastChordOfLine && shouldPrintBarSeparators;
+    if (shouldPrintSpaces) {
       rendering += renderBarContent_space.repeat(spacesWithin) + renderBarContent_space.repeat(spacesAfter);
-    }
-    function shouldPrintChordSpaces() {
-      const isLastChordOfLine = isLastChordOfBar(bar, i) && isLastBar;
-      return !isLastChordOfLine || isLastChordOfLine && shouldPrintBarSeparators;
     }
     return rendering;
   }, '');
@@ -164062,13 +164372,19 @@ const barSeparator_render = ({
  * @param {Boolean} shouldPrintSubBeatDelimiters
  * @param {Boolean} shouldPrintInlineTimeSignatures
  * @param {('chord'|'roman')} options.symbolType
+ * @param {Boolean} options.showInlineDiagrams - whether to show inline chord diagrams
+ * @param {Object} options.chordDefinitions - chord definitions for looking up voicings
+ * @param {('small'|'medium'|'large')} options.diagramSize - size of inline diagrams
  * @returns {String} rendered html
  */
 function renderChordLine(chordLineModel, {
   shouldPrintBarSeparators = true,
   shouldPrintSubBeatDelimiters = true,
   shouldPrintInlineTimeSignatures = true,
-  symbolType = 'chord'
+  symbolType = 'chord',
+  showInlineDiagrams = false,
+  chordDefinitions = {},
+  diagramSize = 'small'
 } = {}) {
   const allBarsRendered = chordLineModel.allBars.map((bar, i) => {
     const isLastBar = !chordLineModel.allBars[i + 1];
@@ -164077,7 +164393,10 @@ function renderChordLine(chordLineModel, {
       shouldPrintBarSeparators,
       shouldPrintSubBeatDelimiters,
       shouldPrintTimeSignature,
-      symbolType
+      symbolType,
+      showInlineDiagrams,
+      chordDefinitions,
+      diagramSize
     });
   });
   const barSeparator = shouldPrintBarSeparators ? tpl_barSeparator({
@@ -164403,11 +164722,73 @@ const sectionLabel_render = ({
 function renderSectionLabel_renderSectionLabel(sectionLabelLine) {
   return sectionLabel(sectionLabelLine.model.rendered);
 }
+;// CONCATENATED MODULE: ../chord-mark/src/renderer/components/tpl/chordDictionary.js
+const chordDictionary_render = ({
+  diagrams,
+  positionClass
+}) => {
+  return `<div class="cmChordDictionary ${positionClass}">${diagrams}</div>`;
+};
+/* harmony default export */ const chordDictionary = (chordDictionary_render);
+;// CONCATENATED MODULE: ../chord-mark/src/renderer/components/renderChordDictionary.js
+
+
+
+
+/**
+ * @typedef {Object} RenderChordDictionaryOptions
+ * @property {('top'|'bottom')} [position='top']
+ * @property {('small'|'medium'|'large')} [size='medium']
+ * @property {boolean} [useShortNamings=true]
+ */
+
+/**
+ * Render a chord dictionary containing all defined chord diagrams
+ * @param {Object.<string, {frets: (number|null)[], source: string}>} chordDefinitions
+ * @param {RenderChordDictionaryOptions} [options]
+ * @returns {string} HTML string
+ */
+function renderChordDictionary(chordDefinitions, {
+  position = 'top',
+  size = 'medium',
+  useShortNamings = true
+} = {}) {
+  const chordNames = Object.keys(chordDefinitions);
+  if (chordNames.length === 0) {
+    return '';
+  }
+
+  // Create parser and renderer to normalize chord names consistently with song rendering
+  const parseChord = parser_chordParserFactory();
+  const renderChord = renderer_chordRendererFactory({
+    useShortNamings
+  });
+  const diagrams = chordNames.map(chordName => {
+    const {
+      frets
+    } = chordDefinitions[chordName];
+    // Parse and normalize the chord name to match how it appears in the song
+    const parsedChord = parseChord(chordName);
+    const normalizedName = parsedChord ? renderChord(parsedChord) : chordName;
+    return renderChordDiagram({
+      chordName: normalizedName,
+      frets,
+      size
+    });
+  }).join('');
+  const positionClass = `cmChordDictionary--${position}`;
+  return chordDictionary({
+    diagrams,
+    positionClass
+  });
+}
 ;// CONCATENATED MODULE: ../chord-mark/src/renderer/components/tpl/song.js
 const song_render = ({
-  song
+  chordDictionaryTop = '',
+  song,
+  chordDictionaryBottom = ''
 }) => {
-  return `<div class="cmSong">${song}</div>`;
+  return `${chordDictionaryTop}<div class="cmSong">${song}</div>${chordDictionaryBottom}`;
 };
 /* harmony default export */ const song = (song_render);
 ;// CONCATENATED MODULE: ../chord-mark/src/renderer/helpers/renderAllSectionLabels.js
@@ -164483,7 +164864,7 @@ const defaultRenderChord = renderer_chordRendererFactory();
  * @param {Function} renderChord
  * @returns {string}
  */
-/* harmony default export */ function getChordSymbol(lineModel, renderChord = defaultRenderChord) {
+/* harmony default export */ function helpers_getChordSymbol(lineModel, renderChord = defaultRenderChord) {
   switch (lineModel) {
     case syntax.noChord:
       return symbols.noChordSymbol;
@@ -164528,7 +164909,7 @@ function renderAllChords(allLines, detectedKey, {
       renderChord = getChordSymbolRenderer(transposeOffSet);
       line.model.allBars.forEach(bar => {
         bar.allChords.forEach(chord => {
-          chord.symbol = getChordSymbol(chord.model, renderChord);
+          chord.symbol = helpers_getChordSymbol(chord.model, renderChord);
         });
       });
     }
@@ -164582,6 +164963,8 @@ const barHasMultiplePositionedChords = (line, bar, alignChordsWithLyrics) => {
 };
 /* harmony default export */ const renderer_replaceRepeatedBars = (replaceRepeatedBars);
 ;// CONCATENATED MODULE: ../chord-mark/src/renderer/components/renderSong.js
+/* eslint-disable max-lines */
+
 
 
 
@@ -164626,6 +165009,9 @@ const barHasMultiplePositionedChords = (line, bar, alignChordsWithLyrics) => {
  * @param {Boolean} options.useShortNamings
  * @param {Object} [options.windowObject] - A JSDOM window object for using chordmark in NodeJs
  * @param {Boolean} options.wrapChordLyricLines
+ * @param {('none'|'dictionary'|'inline'|'both')} options.showChordDiagrams - controls chord diagram display
+ * @param {('top'|'bottom')} options.diagramPosition - position for dictionary mode
+ * @param {('small'|'medium'|'large')} options.diagramSize - size of chord diagrams
  * @returns {String} rendered HTML
  */
 // eslint-disable-next-line max-lines-per-function,complexity
@@ -164637,12 +165023,15 @@ function renderSong(parsedSong, {
   chartType = 'all',
   chordSymbolRenderer = false,
   customRenderer = false,
+  diagramPosition = 'top',
+  diagramSize = 'medium',
   expandSectionCopy = true,
   expandSectionMultiply = false,
   printChordsDuration = 'uneven',
   printBarSeparators = 'always',
   printSubBeatDelimiters: shouldPrintSubBeatDelimiters = true,
   printInlineTimeSignatures: shouldPrintInlineTimeSignatures = true,
+  showChordDiagrams = 'none',
   simplifyChords = 'none',
   symbolType = 'chord',
   transposeValue = 0,
@@ -164652,7 +165041,8 @@ function renderSong(parsedSong, {
 } = {}) {
   let {
     allLines,
-    allKeys
+    allKeys,
+    chordDefinitions = {}
   } = parsedSong;
   let isFirstLyricLineOfSection = false;
   let contextTimeSignature = defaultTimeSignature.string;
@@ -164678,6 +165068,22 @@ function renderSong(parsedSong, {
   });
   allLines.forEach(spaceChordLine);
   const allRenderedLines = renderAllLines();
+
+  // Render chord dictionary
+  let chordDictionaryTop = '';
+  let chordDictionaryBottom = '';
+  if (showChordDiagrams === 'dictionary' || showChordDiagrams === 'both') {
+    const dictionaryHtml = renderChordDictionary(chordDefinitions, {
+      position: diagramPosition,
+      size: diagramSize,
+      useShortNamings
+    });
+    if (diagramPosition === 'top') {
+      chordDictionaryTop = dictionaryHtml;
+    } else {
+      chordDictionaryBottom = dictionaryHtml;
+    }
+  }
   if (customRenderer) {
     return customRenderer(allLines, allRenderedLines, {
       alignChordsWithLyrics,
@@ -164685,7 +165091,9 @@ function renderSong(parsedSong, {
     });
   } else {
     return song({
-      song: allRenderedLines.join('')
+      chordDictionaryTop,
+      song: allRenderedLines.join(''),
+      chordDictionaryBottom
     });
   }
   function getSectionWrapperClasses(line) {
@@ -164779,7 +165187,10 @@ function renderSong(parsedSong, {
           symbolType,
           shouldPrintBarSeparators: shouldPrintBarSeparators(line.model),
           shouldPrintSubBeatDelimiters,
-          shouldPrintInlineTimeSignatures
+          shouldPrintInlineTimeSignatures,
+          showInlineDiagrams: showChordDiagrams === 'inline' || showChordDiagrams === 'both',
+          chordDefinitions,
+          diagramSize
         });
         if (shouldMergeChordLine(line, allLines[i + 1])) {
           chordLineToMerge = rendered;
@@ -164797,6 +165208,9 @@ function renderSong(parsedSong, {
         rendered = renderTimeSignature_render(line);
       } else if (line.type === parser_lineTypes.KEY_DECLARATION) {
         rendered = renderSectionLabel(line);
+      } else if (line.type === parser_lineTypes.CHORD_DEFINITION) {
+        // Chord definitions are rendered in the dictionary, not inline
+        rendered = false;
       } else {
         rendered = renderLyricLine_render(line, {
           alignChordsWithLyrics,

@@ -8661,22 +8661,34 @@ var cloneDeep_default = /*#__PURE__*/__webpack_require__.n(cloneDeep);
  */
 /* harmony default export */ const parser_lineTypes = ({
   CHORD: 'chord',
+  CHORD_DEFINITION: 'chordDefinition',
   EMPTY_LINE: 'emptyLine',
   KEY_DECLARATION: 'keyDeclaration',
   LYRIC: 'lyric',
   SECTION_LABEL: 'sectionLabel',
   TIME_SIGNATURE: 'timeSignature'
 });
-// EXTERNAL MODULE: ../../node_modules/lodash/escapeRegExp.js
-var escapeRegExp = __webpack_require__(3985);
-var escapeRegExp_default = /*#__PURE__*/__webpack_require__.n(escapeRegExp);
 ;// CONCATENATED MODULE: ./src/parser/helper/clearSpaces.js
 function clearSpaces(string) {
   return string.replace(/\t+/g, ' ').replace(/  +/g, ' ').trim();
 }
-;// CONCATENATED MODULE: ./src/parser/matchers/isTimeSignatureString.js
-var allowedTimeSignatures = ['2/2', '3/2', '4/2', '2/4', '3/4', '4/4', '5/4', '6/4', '7/4', '9/4', '10/4', '3/8', '4/8', '5/8', '6/8', '7/8', '9/8', '12/8'];
-function isTimeSignatureString(string) {
+;// CONCATENATED MODULE: ./src/parser/matchers/isChordDefinition.js
+
+
+// Fret chars: 0-9 for frets 0-9, a-o for frets 10-24, x for muted
+var fretCharPattern = '[0-9a-ox]';
+var fretStringPattern = "".concat(fretCharPattern, "{6}");
+var chordDefinitionRegexp = new RegExp("^chord\\s+(.+?)\\s+(".concat(fretStringPattern, ")$"));
+function isChordDefinition(string) {
+  var cleaned = clearSpaces(string);
+  return chordDefinitionRegexp.test(cleaned);
+}
+// EXTERNAL MODULE: ../../node_modules/lodash/escapeRegExp.js
+var escapeRegExp = __webpack_require__(3985);
+var escapeRegExp_default = /*#__PURE__*/__webpack_require__.n(escapeRegExp);
+;// CONCATENATED MODULE: ./src/parser/matchers/isTimeSignature.js
+var allowedTimeSignatures = ['1/2', '2/2', '3/2', '4/2', '1/4', '2/4', '3/4', '4/4', '5/4', '6/4', '7/4', '9/4', '10/4', '3/8', '4/8', '5/8', '6/8', '7/8', '9/8', '12/8'];
+function isTimeSignature(string) {
   return allowedTimeSignatures.includes(string);
 }
 ;// CONCATENATED MODULE: ./src/parser/parseTimeSignature.js
@@ -8696,7 +8708,7 @@ function isTimeSignatureString(string) {
  * @returns {TimeSignature}
  */
 function parseTimeSignature(string) {
-  if (!isTimeSignatureString(string)) {
+  if (!isTimeSignature(string)) {
     throw new TypeError('Expected time signature string, received: ' + string);
   }
   var array = string.split('/');
@@ -11230,6 +11242,28 @@ function isChord(potentialChord) {
 var chordBeatCountSymbols = new RegExp(escapeRegExp_default()(syntax.chordBeatCount) + '*$', 'g');
 var barRepeatSymbols = new RegExp('^' + escapeRegExp_default()(syntax.barRepeat) + '+$');
 
+// Regex to match inline voicing: [xxxxxx] where x is 0-9, a-o, or x
+// Allows beat markers (.) after the voicing
+var inlineVoicingRegexp = /\[([0-9a-ox]{6})\](\.*)$/;
+function extractInlineVoicing(token) {
+  var match = token.match(inlineVoicingRegexp);
+  if (!match) return {
+    cleanToken: token,
+    voicing: undefined
+  };
+  var voicingStr = match[1];
+  var beatMarkers = match[2] || '';
+  var voicing = voicingStr.split('').map(function (char) {
+    if (char === 'x') return null;
+    if (char >= '0' && char <= '9') return parseInt(char, 10);
+    return char.charCodeAt(0) - 'a'.charCodeAt(0) + 10;
+  });
+  return {
+    cleanToken: token.replace(inlineVoicingRegexp, beatMarkers),
+    voicing: voicing
+  };
+}
+
 /**
  * Check if the given line only contains chords and allowed characters.
  * The parsing might still fail at a later stage if some rules are not properly enforced,
@@ -11241,14 +11275,16 @@ function isChordLine() {
   var line = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
   return clearSpaces(getParseableChordLine(line)).split(' ').every(function (potentialChordToken, index, allTokens) {
     var clean = cleanToken(potentialChordToken);
-    return isChord(clean) || potentialChordToken.match(barRepeatSymbols) && index > 0 || clean === syntax.noChord || isTimeSignatureString(potentialChordToken) && allTokens.length > 1;
+    return isChord(clean) || potentialChordToken.match(barRepeatSymbols) && index > 0 || clean === syntax.noChord || isTimeSignature(potentialChordToken) && allTokens.length > 1;
   });
 }
 var getParseableChordLine = function getParseableChordLine(chordLine) {
   return chordLine.replaceAll('add ', 'add');
 };
 var cleanToken = function cleanToken(token) {
-  return removeSubBeatDelimiters(removeBeatCount(token));
+  var _extractInlineVoicing = extractInlineVoicing(token),
+    withoutVoicing = _extractInlineVoicing.cleanToken;
+  return removeSubBeatDelimiters(removeBeatCount(withoutVoicing));
 };
 var removeBeatCount = function removeBeatCount(token) {
   return token.replace(chordBeatCountSymbols, '');
@@ -11284,6 +11320,47 @@ var sectionLabelRegexp = new RegExp('^' + escapeRegExp_default()(syntax.sectionL
 function isSectionLabel(string) {
   var found = clearSpaces(string).match(sectionLabelRegexp);
   return found !== null;
+}
+;// CONCATENATED MODULE: ./src/parser/parseChordDefinition.js
+
+
+
+/**
+ * Parse a fret character to a number or null
+ * @param {string} char - single character (0-9, a-o, x)
+ * @returns {number|null}
+ */
+function parseFretChar(char) {
+  if (char === 'x') return null;
+  if (char >= '0' && char <= '9') return parseInt(char, 10);
+  // a=10, b=11, ..., o=24
+  return char.charCodeAt(0) - 'a'.charCodeAt(0) + 10;
+}
+
+/**
+ * Parse a fret string into an array of fret numbers
+ * @param {string} fretString - 6 character fret string
+ * @returns {(number|null)[]}
+ */
+function parseFretString(fretString) {
+  return fretString.split('').map(parseFretChar);
+}
+
+/**
+ * @param {String} string
+ * @returns {{chordName: string, frets: (number|null)[]}}
+ */
+function parseChordDefinition(string) {
+  if (!isChordDefinition(string)) {
+    throw new TypeError('Expected chord definition, received: ' + string);
+  }
+  var found = clearSpaces(string).match(chordDefinitionRegexp);
+  var chordName = found[1];
+  var fretString = found[2];
+  return {
+    chordName: chordName,
+    frets: parseFretString(fretString)
+  };
 }
 ;// CONCATENATED MODULE: ./src/parser/parseChord.js
 
@@ -11558,7 +11635,7 @@ function parseChordLine(chordLine) {
   allTokens.forEach(function (token, tokenIndex) {
     if (token.match(parseChordLine_barRepeatSymbols)) {
       repeatPreviousBars(token);
-    } else if (isTimeSignatureString(token)) {
+    } else if (isTimeSignature(token)) {
       changeTimeSignature(token);
     } else {
       parseChordToken(token);
@@ -11600,6 +11677,8 @@ function parseChordLine(chordLine) {
       checkSubBeatGroupToken(chordLine, token);
       updateSubBeatGroupsChordCount(token);
     }
+    var _extractInlineVoicing = extractInlineVoicing(token),
+      inlineVoicing = _extractInlineVoicing.voicing;
     cleanedToken = cleanToken(token);
     chord = {
       string: token,
@@ -11608,10 +11687,16 @@ function parseChordLine(chordLine) {
       beat: currentBeatCount + 1,
       isInSubBeatGroup: isInSubBeatGroup
     };
+    if (inlineVoicing) {
+      chord.inlineVoicing = inlineVoicing;
+    }
     currentBeatCount += chord.duration;
     checkInvalidChordRepetition(bar, chord);
     bar.allChords.push(chord);
-    if (token.endsWith(syntax.subBeatCloser)) {
+
+    // Only check for sub-beat closer if this token doesn't have an inline voicing
+    // (inline voicing also ends with ] but shouldn't be treated as sub-beat closer)
+    if (token.endsWith(syntax.subBeatCloser) && !inlineVoicing) {
       checkSubBeatGroupChordCount(token);
       isInSubBeatGroup = false;
       subBeatGroupIndex++;
@@ -12181,6 +12266,8 @@ function songLinesFactory_toPrimitive(t, r) { if ("object" != songLinesFactory_t
 
 
 
+
+
 var songLinesFactory_defaultTimeSignature = '4/4';
 
 /**
@@ -12264,6 +12351,17 @@ function songLinesFactory() {
       string: string,
       type: parser_lineTypes.KEY_DECLARATION,
       model: cloneDeep_default()(currentKey)
+    };
+  }
+
+  /**
+   * @returns {SongChordDefinitionLine}
+   */
+  function getChordDefinitionLine(string) {
+    return {
+      string: string,
+      type: parser_lineTypes.CHORD_DEFINITION,
+      model: parseChordDefinition(string)
     };
   }
 
@@ -12419,7 +12517,7 @@ function songLinesFactory() {
       return true;
     }
     var currentSectionContent = remainingLines.slice(0, nextSectionIndex !== -1 ? nextSectionIndex : undefined).filter(function (line) {
-      return !(isTimeSignatureString(line) || isKeyDeclaration(line) || isEmptyLine(line));
+      return !(isTimeSignature(line) || isKeyDeclaration(line) || isEmptyLine(line));
     });
     return currentSectionContent.length === 0;
   }
@@ -12448,7 +12546,7 @@ function songLinesFactory() {
   return {
     addLine: function addLine(lineSrc, lineIndex, allSrcLines) {
       var line;
-      if (isTimeSignatureString(lineSrc)) {
+      if (isTimeSignature(lineSrc)) {
         line = getTimeSignatureLine(lineSrc);
       } else if (isSectionLabel(lineSrc)) {
         line = getSectionLabelLine(lineSrc, lineIndex, allSrcLines);
@@ -12460,6 +12558,8 @@ function songLinesFactory() {
         line = getEmptyLine(lineSrc);
       } else if (isKeyDeclaration(lineSrc)) {
         line = getKeyDeclarationLine(lineSrc);
+      } else if (isChordDefinition(lineSrc)) {
+        line = getChordDefinitionLine(lineSrc);
       } else {
         line = getLyricLine(lineSrc);
       }
@@ -12506,6 +12606,26 @@ function shouldPositionChords(line, nextLine) {
 function endsWithEmptyLine(allLines) {
   var lastLine = allLines[allLines.length - 1];
   return lastLine.type === parser_lineTypes.EMPTY_LINE;
+}
+;// CONCATENATED MODULE: ./src/parser/getAllChordDefinitions.js
+
+
+/**
+ * Extract all chord definitions from parsed song lines
+ * @param {SongLine[]} allLines
+ * @returns {Object.<string, {frets: (number|null)[], source: string}>}
+ */
+function getAllChordDefinitions(allLines) {
+  var definitions = {};
+  allLines.forEach(function (line) {
+    if (line.type === parser_lineTypes.CHORD_DEFINITION) {
+      definitions[line.model.chordName] = {
+        frets: line.model.frets,
+        source: 'directive'
+      };
+    }
+  });
+  return definitions;
 }
 ;// CONCATENATED MODULE: ./src/parser/getAllChordsInSong.js
 
@@ -12582,6 +12702,7 @@ function getAllKeysInSong(allLines, allChords) {
 
 
 
+
 /**
  * @typedef {Object} Song
  * @type {Object}
@@ -12629,10 +12750,12 @@ function parseSong(songSrc) {
   var allLines = songLines.asArray();
   var allChords = getAllChordsInSong(allLines);
   var allKeys = getAllKeysInSong(allLines, allChords);
+  var chordDefinitions = getAllChordDefinitions(allLines);
   return {
     allLines: allLines,
     allChords: allChords,
-    allKeys: allKeys
+    allKeys: allKeys,
+    chordDefinitions: chordDefinitions
   };
 }
 ;// CONCATENATED MODULE: ./src/renderer/symbols.js
@@ -13551,10 +13674,214 @@ var sectionLabel_render = function render(_ref) {
 function renderSectionLabel_renderSectionLabel(sectionLabelLine) {
   return sectionLabel(sectionLabelLine.model.rendered);
 }
+;// CONCATENATED MODULE: ./src/renderer/components/renderChordDiagram.js
+function renderChordDiagram_typeof(o) { "@babel/helpers - typeof"; return renderChordDiagram_typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, renderChordDiagram_typeof(o); }
+function renderChordDiagram_ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function renderChordDiagram_objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? renderChordDiagram_ownKeys(Object(t), !0).forEach(function (r) { renderChordDiagram_defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : renderChordDiagram_ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+function renderChordDiagram_defineProperty(e, r, t) { return (r = renderChordDiagram_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function renderChordDiagram_toPropertyKey(t) { var i = renderChordDiagram_toPrimitive(t, "string"); return "symbol" == renderChordDiagram_typeof(i) ? i : i + ""; }
+function renderChordDiagram_toPrimitive(t, r) { if ("object" != renderChordDiagram_typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != renderChordDiagram_typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function renderChordDiagram_toConsumableArray(r) { return renderChordDiagram_arrayWithoutHoles(r) || renderChordDiagram_iterableToArray(r) || renderChordDiagram_unsupportedIterableToArray(r) || renderChordDiagram_nonIterableSpread(); }
+function renderChordDiagram_nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function renderChordDiagram_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return renderChordDiagram_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? renderChordDiagram_arrayLikeToArray(r, a) : void 0; } }
+function renderChordDiagram_iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
+function renderChordDiagram_arrayWithoutHoles(r) { if (Array.isArray(r)) return renderChordDiagram_arrayLikeToArray(r); }
+function renderChordDiagram_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+var SIZES = {
+  small: {
+    width: 50,
+    height: 80,
+    fontSize: 10
+  },
+  medium: {
+    width: 70,
+    height: 105,
+    fontSize: 12
+  },
+  large: {
+    width: 100,
+    height: 140,
+    fontSize: 16
+  }
+};
+var NUM_STRINGS = 6;
+var NUM_FRETS = 5;
+function escapeXml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function calculateStartFret(frets) {
+  var nonNullFrets = frets.filter(function (f) {
+    return f !== null && f > 0;
+  });
+  var minFret = nonNullFrets.length > 0 ? Math.min.apply(Math, renderChordDiagram_toConsumableArray(nonNullFrets)) : 1;
+  var maxFret = nonNullFrets.length > 0 ? Math.max.apply(Math, renderChordDiagram_toConsumableArray(nonNullFrets)) : 1;
+  return maxFret <= NUM_FRETS ? 1 : minFret;
+}
+function renderGridLines(_ref) {
+  var padding = _ref.padding,
+    gridWidth = _ref.gridWidth,
+    gridHeight = _ref.gridHeight,
+    stringSpacing = _ref.stringSpacing,
+    fretSpacing = _ref.fretSpacing;
+  var elements = [];
+  for (var i = 0; i <= NUM_FRETS; i++) {
+    var y = padding.top + i * fretSpacing;
+    var x2 = padding.left + gridWidth;
+    elements.push("<line class=\"cmChordDiagram-fret\" x1=\"".concat(padding.left, "\" y1=\"").concat(y, "\" x2=\"").concat(x2, "\" y2=\"").concat(y, "\"/>"));
+  }
+  for (var _i = 0; _i < NUM_STRINGS; _i++) {
+    var x = padding.left + _i * stringSpacing;
+    var y2 = padding.top + gridHeight;
+    elements.push("<line class=\"cmChordDiagram-string\" x1=\"".concat(x, "\" y1=\"").concat(padding.top, "\" x2=\"").concat(x, "\" y2=\"").concat(y2, "\"/>"));
+  }
+  return elements;
+}
+function renderFingerPositions(_ref2) {
+  var frets = _ref2.frets,
+    padding = _ref2.padding,
+    stringSpacing = _ref2.stringSpacing,
+    fretSpacing = _ref2.fretSpacing,
+    fontSize = _ref2.fontSize,
+    startFret = _ref2.startFret;
+  var elements = [];
+  frets.forEach(function (fret, stringIndex) {
+    var x = padding.left + stringIndex * stringSpacing;
+    var markerY = padding.top - 8;
+    if (fret === null) {
+      elements.push("<text class=\"cmChordDiagram-mutedString\" x=\"".concat(x, "\" y=\"").concat(markerY, "\" ") + "text-anchor=\"middle\" font-size=\"".concat(fontSize, "\">\xD7</text>"));
+    } else if (fret === 0) {
+      elements.push("<text class=\"cmChordDiagram-openString\" x=\"".concat(x, "\" y=\"").concat(markerY, "\" ") + "text-anchor=\"middle\" font-size=\"".concat(fontSize, "\">\u25CB</text>"));
+    } else {
+      var relativeFret = fret - startFret + 1;
+      var y = padding.top + (relativeFret - 0.5) * fretSpacing;
+      var dotRadius = fretSpacing * 0.35;
+      elements.push("<circle class=\"cmChordDiagram-dot\" cx=\"".concat(x, "\" cy=\"").concat(y, "\" r=\"").concat(dotRadius, "\"/>"));
+    }
+  });
+  return elements;
+}
+
+/**
+ * Render a guitar chord diagram as SVG
+ * @param {Object} options
+ * @param {string} options.chordName
+ * @param {(number|null)[]} options.frets - array of 6 fret numbers, null for muted
+ * @param {('small'|'medium'|'large')} [options.size='medium']
+ * @returns {string} SVG string
+ */
+function renderChordDiagram(_ref3) {
+  var chordName = _ref3.chordName,
+    frets = _ref3.frets,
+    _ref3$size = _ref3.size,
+    size = _ref3$size === void 0 ? 'medium' : _ref3$size;
+  var _ref4 = SIZES[size] || SIZES.medium,
+    width = _ref4.width,
+    height = _ref4.height,
+    fontSize = _ref4.fontSize;
+  var sizeClass = "cmChordDiagram--".concat(size);
+  var padding = {
+    top: 35,
+    left: 10,
+    right: 10,
+    bottom: 10
+  };
+  var gridWidth = width - padding.left - padding.right;
+  var gridHeight = height - padding.top - padding.bottom;
+  var stringSpacing = gridWidth / (NUM_STRINGS - 1);
+  var fretSpacing = gridHeight / NUM_FRETS;
+  var startFret = calculateStartFret(frets);
+  var grid = {
+    padding: padding,
+    gridWidth: gridWidth,
+    gridHeight: gridHeight,
+    stringSpacing: stringSpacing,
+    fretSpacing: fretSpacing
+  };
+  var elements = [];
+  elements.push("<text class=\"cmChordDiagram-label\" x=\"".concat(width / 2, "\" y=\"").concat(fontSize, "\" ") + "text-anchor=\"middle\" font-size=\"".concat(fontSize, "\">").concat(escapeXml(chordName), "</text>"));
+  if (startFret === 1) {
+    var nutX2 = padding.left + gridWidth;
+    elements.push("<line class=\"cmChordDiagram-nut\" x1=\"".concat(padding.left, "\" y1=\"").concat(padding.top, "\" ") + "x2=\"".concat(nutX2, "\" y2=\"").concat(padding.top, "\" stroke-width=\"3\"/>"));
+  } else {
+    var fretNumY = padding.top + fretSpacing / 2 + 4;
+    elements.push("<text class=\"cmChordDiagram-fretNumber\" x=\"".concat(padding.left - 5, "\" y=\"").concat(fretNumY, "\" ") + "text-anchor=\"end\" font-size=\"".concat(fontSize * 0.8, "\">").concat(startFret, "</text>"));
+  }
+  elements.push.apply(elements, renderChordDiagram_toConsumableArray(renderGridLines(grid)));
+  elements.push.apply(elements, renderChordDiagram_toConsumableArray(renderFingerPositions(renderChordDiagram_objectSpread(renderChordDiagram_objectSpread({}, grid), {}, {
+    frets: frets,
+    fontSize: fontSize,
+    startFret: startFret
+  }))));
+  return "<svg class=\"cmChordDiagram ".concat(sizeClass, "\" viewBox=\"0 0 ").concat(width, " ").concat(height, "\" ") + "width=\"".concat(width, "\" height=\"").concat(height, "\">").concat(elements.join(''), "</svg>");
+}
+;// CONCATENATED MODULE: ./src/renderer/components/tpl/chordDictionary.js
+var chordDictionary_render = function render(_ref) {
+  var diagrams = _ref.diagrams,
+    positionClass = _ref.positionClass;
+  return "<div class=\"cmChordDictionary ".concat(positionClass, "\">").concat(diagrams, "</div>");
+};
+/* harmony default export */ const chordDictionary = (chordDictionary_render);
+;// CONCATENATED MODULE: ./src/renderer/components/renderChordDictionary.js
+
+
+
+
+/**
+ * @typedef {Object} RenderChordDictionaryOptions
+ * @property {('top'|'bottom')} [position='top']
+ * @property {('small'|'medium'|'large')} [size='medium']
+ * @property {boolean} [useShortNamings=true]
+ */
+
+/**
+ * Render a chord dictionary containing all defined chord diagrams
+ * @param {Object.<string, {frets: (number|null)[], source: string}>} chordDefinitions
+ * @param {RenderChordDictionaryOptions} [options]
+ * @returns {string} HTML string
+ */
+function renderChordDictionary(chordDefinitions) {
+  var _ref = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+    _ref$position = _ref.position,
+    position = _ref$position === void 0 ? 'top' : _ref$position,
+    _ref$size = _ref.size,
+    size = _ref$size === void 0 ? 'medium' : _ref$size,
+    _ref$useShortNamings = _ref.useShortNamings,
+    useShortNamings = _ref$useShortNamings === void 0 ? true : _ref$useShortNamings;
+  var chordNames = Object.keys(chordDefinitions);
+  if (chordNames.length === 0) {
+    return '';
+  }
+
+  // Create parser and renderer to normalize chord names consistently with song rendering
+  var parseChord = parser_chordParserFactory();
+  var renderChord = renderer_chordRendererFactory({
+    useShortNamings: useShortNamings
+  });
+  var diagrams = chordNames.map(function (chordName) {
+    var frets = chordDefinitions[chordName].frets;
+    // Parse and normalize the chord name to match how it appears in the song
+    var parsedChord = parseChord(chordName);
+    var normalizedName = parsedChord ? renderChord(parsedChord) : chordName;
+    return renderChordDiagram({
+      chordName: normalizedName,
+      frets: frets,
+      size: size
+    });
+  }).join('');
+  var positionClass = "cmChordDictionary--".concat(position);
+  return chordDictionary({
+    diagrams: diagrams,
+    positionClass: positionClass
+  });
+}
 ;// CONCATENATED MODULE: ./src/renderer/components/tpl/song.js
 var song_render = function render(_ref) {
-  var song = _ref.song;
-  return "<div class=\"cmSong\">".concat(song, "</div>");
+  var _ref$chordDictionaryT = _ref.chordDictionaryTop,
+    chordDictionaryTop = _ref$chordDictionaryT === void 0 ? '' : _ref$chordDictionaryT,
+    song = _ref.song,
+    _ref$chordDictionaryB = _ref.chordDictionaryBottom,
+    chordDictionaryBottom = _ref$chordDictionaryB === void 0 ? '' : _ref$chordDictionaryB;
+  return "".concat(chordDictionaryTop, "<div class=\"cmSong\">").concat(song, "</div>").concat(chordDictionaryBottom);
 };
 /* harmony default export */ const song = (song_render);
 ;// CONCATENATED MODULE: ./src/renderer/helpers/renderAllSectionLabels.js
@@ -13748,6 +14075,7 @@ var barHasMultiplePositionedChords = function barHasMultiplePositionedChords(lin
 
 
 
+
 /**
  * @param {Song} parsedSong
  * @param {Object} options
@@ -13773,6 +14101,9 @@ var barHasMultiplePositionedChords = function barHasMultiplePositionedChords(lin
  * @param {Boolean} options.useShortNamings
  * @param {Object} [options.windowObject] - A JSDOM window object for using chordmark in NodeJs
  * @param {Boolean} options.wrapChordLyricLines
+ * @param {('none'|'dictionary'|'inline'|'both')} options.showChordDiagrams - controls chord diagram display
+ * @param {('top'|'bottom')} options.diagramPosition - position for dictionary mode
+ * @param {('small'|'medium'|'large')} options.diagramSize - size of chord diagrams
  * @returns {String} rendered HTML
  */
 // eslint-disable-next-line max-lines-per-function,complexity
@@ -13792,6 +14123,10 @@ function renderSong(parsedSong) {
     chordSymbolRenderer = _ref$chordSymbolRende === void 0 ? false : _ref$chordSymbolRende,
     _ref$customRenderer = _ref.customRenderer,
     customRenderer = _ref$customRenderer === void 0 ? false : _ref$customRenderer,
+    _ref$diagramPosition = _ref.diagramPosition,
+    diagramPosition = _ref$diagramPosition === void 0 ? 'top' : _ref$diagramPosition,
+    _ref$diagramSize = _ref.diagramSize,
+    diagramSize = _ref$diagramSize === void 0 ? 'medium' : _ref$diagramSize,
     _ref$expandSectionCop = _ref.expandSectionCopy,
     expandSectionCopy = _ref$expandSectionCop === void 0 ? true : _ref$expandSectionCop,
     _ref$expandSectionMul = _ref.expandSectionMultiply,
@@ -13804,6 +14139,8 @@ function renderSong(parsedSong) {
     shouldPrintSubBeatDelimiters = _ref$printSubBeatDeli === void 0 ? true : _ref$printSubBeatDeli,
     _ref$printInlineTimeS = _ref.printInlineTimeSignatures,
     shouldPrintInlineTimeSignatures = _ref$printInlineTimeS === void 0 ? true : _ref$printInlineTimeS,
+    _ref$showChordDiagram = _ref.showChordDiagrams,
+    showChordDiagrams = _ref$showChordDiagram === void 0 ? 'none' : _ref$showChordDiagram,
     _ref$simplifyChords = _ref.simplifyChords,
     simplifyChords = _ref$simplifyChords === void 0 ? 'none' : _ref$simplifyChords,
     _ref$symbolType = _ref.symbolType,
@@ -13817,7 +14154,9 @@ function renderSong(parsedSong) {
     _ref$wrapChordLyricLi = _ref.wrapChordLyricLines,
     wrapChordLyricLines = _ref$wrapChordLyricLi === void 0 ? false : _ref$wrapChordLyricLi;
   var allLines = parsedSong.allLines,
-    allKeys = parsedSong.allKeys;
+    allKeys = parsedSong.allKeys,
+    _parsedSong$chordDefi = parsedSong.chordDefinitions,
+    chordDefinitions = _parsedSong$chordDefi === void 0 ? {} : _parsedSong$chordDefi;
   var isFirstLyricLineOfSection = false;
   var contextTimeSignature = defaultTimeSignature.string;
   var previousBarTimeSignature;
@@ -13842,6 +14181,22 @@ function renderSong(parsedSong) {
   });
   allLines.forEach(spaceChordLine);
   var allRenderedLines = renderAllLines();
+
+  // Render chord dictionary
+  var chordDictionaryTop = '';
+  var chordDictionaryBottom = '';
+  if (showChordDiagrams === 'dictionary' || showChordDiagrams === 'both') {
+    var dictionaryHtml = renderChordDictionary(chordDefinitions, {
+      position: diagramPosition,
+      size: diagramSize,
+      useShortNamings: useShortNamings
+    });
+    if (diagramPosition === 'top') {
+      chordDictionaryTop = dictionaryHtml;
+    } else {
+      chordDictionaryBottom = dictionaryHtml;
+    }
+  }
   if (customRenderer) {
     return customRenderer(allLines, allRenderedLines, {
       alignChordsWithLyrics: alignChordsWithLyrics,
@@ -13849,7 +14204,9 @@ function renderSong(parsedSong) {
     });
   } else {
     return song({
-      song: allRenderedLines.join('')
+      chordDictionaryTop: chordDictionaryTop,
+      song: allRenderedLines.join(''),
+      chordDictionaryBottom: chordDictionaryBottom
     });
   }
   function getSectionWrapperClasses(line) {
@@ -13960,6 +14317,9 @@ function renderSong(parsedSong) {
         rendered = renderTimeSignature_render(line);
       } else if (line.type === parser_lineTypes.KEY_DECLARATION) {
         rendered = renderSectionLabel(line);
+      } else if (line.type === parser_lineTypes.CHORD_DEFINITION) {
+        // Chord definitions are rendered in the dictionary, not inline
+        rendered = false;
       } else {
         rendered = renderLyricLine_render(line, {
           alignChordsWithLyrics: alignChordsWithLyrics,
