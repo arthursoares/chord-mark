@@ -1553,7 +1553,12 @@ describe('Inline voicing', () => {
 	test('parses chord with inline voicing', () => {
 		const result = parseChordLine('Cmaj7[x32000]');
 		expect(result.allBars[0].allChords[0].inlineVoicing).toEqual([
-			null, 3, 2, 0, 0, 0,
+			null,
+			3,
+			2,
+			0,
+			0,
+			0,
 		]);
 	});
 

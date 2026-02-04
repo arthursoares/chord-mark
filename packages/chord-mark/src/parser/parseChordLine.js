@@ -14,7 +14,11 @@ import InvalidBeatCountException from './exceptions/InvalidBeatCountException';
 import InvalidChordRepetitionException from './exceptions/InvalidChordRepetitionException';
 import InvalidSubBeatGroupException from './exceptions/InvalidSubBeatGroupException';
 import InvalidBarRepeatException from './exceptions/InvalidBarRepeatException';
-import { getParseableChordLine, cleanToken, extractInlineVoicing } from './matchers/isChordLine';
+import {
+	getParseableChordLine,
+	cleanToken,
+	extractInlineVoicing,
+} from './matchers/isChordLine';
 
 const chordBeatCountSymbols = new RegExp(
 	_escapeRegExp(syntax.chordBeatCount),

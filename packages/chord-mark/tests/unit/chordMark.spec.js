@@ -1,4 +1,4 @@
-import { parseSong, renderSong, lineTypes } from '../../src/chordMark';
+import { lineTypes } from '../../src/chordMark';
 
 describe('chordMark exports', () => {
 	test('lineTypes includes CHORD_DEFINITION', () => {
