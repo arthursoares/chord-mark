@@ -349,6 +349,7 @@ key Am`;
 					},
 				],
 			},
+			chordDefinitions: {},
 		};
 
 		expect(parseSong(input)).toEqual(expected);
@@ -379,8 +380,42 @@ key Am`;
 				auto: undefined,
 				explicit: [],
 			},
+			chordDefinitions: {},
 		};
 
 		expect(parseSong(input)).toEqual(expected);
+	});
+
+	describe('Chord definitions', () => {
+		test('parseSong includes chordDefinitions in result', () => {
+			const song = `chord Cmaj7 x32000
+chord Am7 x02010
+
+Verse
+| Cmaj7 . Am7 . |
+Hello world`;
+
+			const result = parseSong(song);
+
+			expect(result.chordDefinitions).toBeDefined();
+			expect(result.chordDefinitions.Cmaj7).toEqual({
+				frets: [null, 3, 2, 0, 0, 0],
+				source: 'directive',
+			});
+			expect(result.chordDefinitions.Am7).toEqual({
+				frets: [null, 0, 2, 0, 1, 0],
+				source: 'directive',
+			});
+		});
+
+		test('parseSong returns empty chordDefinitions when none defined', () => {
+			const song = `Verse
+| C . G . |
+Hello`;
+
+			const result = parseSong(song);
+
+			expect(result.chordDefinitions).toEqual({});
+		});
 	});
 });

@@ -1,8 +1,10 @@
 jest.mock('../../../src/parser/songLinesFactory');
+jest.mock('../../../src/parser/getAllChordDefinitions');
 jest.mock('../../../src/parser/getAllChordsInSong');
 jest.mock('../../../src/parser/getAllKeysInSong');
 
 import songLinesFactory from '../../../src/parser/songLinesFactory';
+import getAllChordDefinitions from '../../../src/parser/getAllChordDefinitions';
 import getAllChordsInSong from '../../../src/parser/getAllChordsInSong';
 import getAllKeysInSong from '../../../src/parser/getAllKeysInSong';
 
@@ -17,6 +19,7 @@ describe('parseSong', () => {
 const flagPositionedChords = jest.fn();
 
 describe('parseSong()', () => {
+	getAllChordDefinitions.mockReturnValue({});
 	getAllChordsInSong.mockReturnValue([]);
 	getAllKeysInSong.mockReturnValue({});
 	songLinesFactory.mockImplementation(() => {
@@ -39,6 +42,7 @@ describe('parseSong()', () => {
 			allLines: ['this is a text line'],
 			allChords: [],
 			allKeys: {},
+			chordDefinitions: {},
 		};
 
 		const parsed = parseSong(input);
@@ -52,6 +56,7 @@ describe('parseSong()', () => {
 			allLines: ['C.. G..', 'line1-1', 'Am.. F..', 'line1-2'],
 			allChords: [],
 			allKeys: {},
+			chordDefinitions: {},
 		};
 
 		const parsed = parseSong(input);
@@ -68,6 +73,7 @@ line1-2`;
 			allLines: ['C.. G..', 'line1-1', 'Am.. F..', 'line1-2'],
 			allChords: [],
 			allKeys: {},
+			chordDefinitions: {},
 		};
 
 		const parsed = parseSong(input);

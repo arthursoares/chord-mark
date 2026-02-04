@@ -5,6 +5,7 @@ import stripTags from '../core/dom/stripTags';
 
 import songLinesFactory from './songLinesFactory';
 
+import getAllChordDefinitions from './getAllChordDefinitions';
 import getAllChordsInSong from './getAllChordsInSong';
 import getAllKeysInSong from './getAllKeysInSong';
 
@@ -55,10 +56,12 @@ export default function parseSong(songSrc, { windowObject } = {}) {
 	const allLines = songLines.asArray();
 	const allChords = getAllChordsInSong(allLines);
 	const allKeys = getAllKeysInSong(allLines, allChords);
+	const chordDefinitions = getAllChordDefinitions(allLines);
 
 	return {
 		allLines,
 		allChords,
 		allKeys,
+		chordDefinitions,
 	};
 }
