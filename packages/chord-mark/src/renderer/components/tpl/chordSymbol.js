@@ -4,6 +4,7 @@ const render = ({
 	subBeatGroupOpener,
 	subBeatGroupCloser,
 	numeralType,
+	inlineDiagram,
 }) => {
 	const groupOpen = subBeatGroupOpener
 		? `<span class="cmSubBeatGroupOpener">${subBeatGroupOpener}</span>`
@@ -19,12 +20,22 @@ const render = ({
 		symbolClasses.push(`cmRomanNumeral`, `cmRomanNumeral-${numeralType}`);
 	}
 
-	return `${groupOpen}<span class="${symbolClasses.join(
+	if (inlineDiagram) {
+		symbolClasses.push('cmChordSymbol--withDiagram');
+	}
+
+	const symbolHtml = `<span class="${symbolClasses.join(
 		' '
 	)}">${chordSymbol}${
 		chordDuration
 			? `<span class="cmChordDuration">${chordDuration}</span>`
 			: ''
-	}</span>${groupClose}`;
+	}</span>`;
+
+	if (inlineDiagram) {
+		return `${groupOpen}<span class="cmChordWithDiagram">${inlineDiagram}${symbolHtml}</span>${groupClose}`;
+	}
+
+	return `${groupOpen}${symbolHtml}${groupClose}`;
 };
 export default render;

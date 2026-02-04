@@ -11,6 +11,22 @@ const space = ' ';
 const defaultSpacesWithin = 0;
 const defaultSpacesAfter = 2;
 
+function getVoicing(chord, chordDefinitions) {
+	// Priority: inline voicing override > chord definition
+	if (chord.inlineVoicing) {
+		return chord.inlineVoicing;
+	}
+	// chord.model.input is an object with a symbol property
+	const chordName = chord.model?.input?.symbol;
+	if (chordName) {
+		const def = chordDefinitions[chordName];
+		if (def && def.frets) {
+			return def.frets;
+		}
+	}
+	return undefined;
+}
+
 /**
  * @param {Bar} bar
  * @param {Boolean} isLastBar
@@ -18,6 +34,9 @@ const defaultSpacesAfter = 2;
  * @param {Boolean} shouldPrintSubBeatDelimiters
  * @param {Boolean} shouldPrintTimeSignature
  * @param {('chord'|'roman')} options.symbolType
+ * @param {Boolean} options.showInlineDiagrams - whether to show inline chord diagrams
+ * @param {Object} options.chordDefinitions - chord definitions for looking up voicings
+ * @param {('small'|'medium'|'large')} options.diagramSize - size of inline diagrams
  * @returns {String} rendered html
  */
 export default function renderBarContent(
@@ -28,6 +47,9 @@ export default function renderBarContent(
 		shouldPrintSubBeatDelimiters = true,
 		shouldPrintTimeSignature = false,
 		symbolType = 'chord',
+		showInlineDiagrams = false,
+		chordDefinitions = {},
+		diagramSize = 'small',
 	} = {}
 ) {
 	let spacesWithin = 0;
@@ -48,6 +70,10 @@ export default function renderBarContent(
 			? chord.spacesAfter
 			: defaultSpacesAfter;
 
+		const voicing = showInlineDiagrams
+			? getVoicing(chord, chordDefinitions)
+			: undefined;
+
 		rendering += renderChordSymbol(chord, {
 			shouldPrintChordsDuration: chord.isInSubBeatGroup
 				? false
@@ -57,18 +83,17 @@ export default function renderBarContent(
 			shouldPrintSubBeatCloser:
 				shouldPrintSubBeatDelimiters && chord.isLastOfSubBeat,
 			symbolType,
+			voicing,
+			diagramSize,
 		});
 
-		if (shouldPrintChordSpaces()) {
-			rendering += space.repeat(spacesWithin) + space.repeat(spacesAfter);
-		}
+		const isLastChordOfLine = isLastChordOfBar(bar, i) && isLastBar;
+		const shouldPrintSpaces =
+			!isLastChordOfLine ||
+			(isLastChordOfLine && shouldPrintBarSeparators);
 
-		function shouldPrintChordSpaces() {
-			const isLastChordOfLine = isLastChordOfBar(bar, i) && isLastBar;
-			return (
-				!isLastChordOfLine ||
-				(isLastChordOfLine && shouldPrintBarSeparators)
-			);
+		if (shouldPrintSpaces) {
+			rendering += space.repeat(spacesWithin) + space.repeat(spacesAfter);
 		}
 
 		return rendering;

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import getMaxBeatsWidth from '../spacers/chord/getMaxBeatsWidth';
 
 import simpleChordSpacer from '../spacers/chord/simple';
@@ -290,6 +291,11 @@ export default function renderSong(
 							),
 							shouldPrintSubBeatDelimiters,
 							shouldPrintInlineTimeSignatures,
+							showInlineDiagrams:
+								showChordDiagrams === 'inline' ||
+								showChordDiagrams === 'both',
+							chordDefinitions,
+							diagramSize,
 						});
 						if (shouldMergeChordLine(line, allLines[i + 1])) {
 							chordLineToMerge = rendered;
