@@ -14,7 +14,7 @@ import InvalidBeatCountException from './exceptions/InvalidBeatCountException';
 import InvalidChordRepetitionException from './exceptions/InvalidChordRepetitionException';
 import InvalidSubBeatGroupException from './exceptions/InvalidSubBeatGroupException';
 import InvalidBarRepeatException from './exceptions/InvalidBarRepeatException';
-import { getParseableChordLine, cleanToken } from './matchers/isChordLine';
+import { getParseableChordLine, cleanToken, extractInlineVoicing } from './matchers/isChordLine';
 
 const chordBeatCountSymbols = new RegExp(
 	_escapeRegExp(syntax.chordBeatCount),
@@ -147,6 +147,7 @@ export default function parseChordLine(
 			updateSubBeatGroupsChordCount(token);
 		}
 
+		const { voicing: inlineVoicing } = extractInlineVoicing(token);
 		cleanedToken = cleanToken(token);
 		chord = {
 			string: token,
@@ -157,13 +158,18 @@ export default function parseChordLine(
 			beat: currentBeatCount + 1,
 			isInSubBeatGroup,
 		};
+		if (inlineVoicing) {
+			chord.inlineVoicing = inlineVoicing;
+		}
 		currentBeatCount += chord.duration;
 
 		checkInvalidChordRepetition(bar, chord);
 
 		bar.allChords.push(chord);
 
-		if (token.endsWith(syntax.subBeatCloser)) {
+		// Only check for sub-beat closer if this token doesn't have an inline voicing
+		// (inline voicing also ends with ] but shouldn't be treated as sub-beat closer)
+		if (token.endsWith(syntax.subBeatCloser) && !inlineVoicing) {
 			checkSubBeatGroupChordCount(token);
 			isInSubBeatGroup = false;
 			subBeatGroupIndex++;

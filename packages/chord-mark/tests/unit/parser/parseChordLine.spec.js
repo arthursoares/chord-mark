@@ -1549,6 +1549,35 @@ describe.each([
 	});
 });
 
+describe('Inline voicing', () => {
+	test('parses chord with inline voicing', () => {
+		const result = parseChordLine('Cmaj7[x32000]');
+		expect(result.allBars[0].allChords[0].inlineVoicing).toEqual([
+			null, 3, 2, 0, 0, 0,
+		]);
+	});
+
+	test('parses chord without inline voicing', () => {
+		const result = parseChordLine('Cmaj7');
+		expect(result.allBars[0].allChords[0].inlineVoicing).toBeUndefined();
+	});
+
+	test('parses multiple chords with mixed voicings', () => {
+		const result = parseChordLine('Cmaj7[x32000].. Am7. Dm7[xx0211].');
+		const chords = result.allBars[0].allChords;
+
+		expect(chords[0].inlineVoicing).toEqual([null, 3, 2, 0, 0, 0]);
+		expect(chords[1].inlineVoicing).toBeUndefined();
+		expect(chords[2].inlineVoicing).toEqual([null, null, 0, 2, 1, 1]);
+	});
+
+	test('preserves chord symbol without brackets', () => {
+		const result = parseChordLine('Cmaj7[x32000]');
+		expect(result.allBars[0].allChords[0].string).toBe('Cmaj7[x32000]');
+		expect(result.allBars[0].allChords[0].model.symbol).toBe('Cmaj7');
+	});
+});
+
 describe.each([
 	['A... [B7. D7.]'],
 	['A... [B7. D7]'],
