@@ -7,6 +7,11 @@ const SIZES = {
 const NUM_STRINGS = 6;
 const NUM_FRETS = 5;
 
+// Top padding for a labeled diagram, and the share of it that exists only to
+// hold the chord-name label (dropped for inline diagrams that have no label).
+const LABELED_TOP = 35;
+const LABEL_BAND = 15;
+
 function escapeXml(str) {
 	return str
 		.replace(/&/g, '&amp;')
@@ -95,9 +100,20 @@ export default function renderChordDiagram({
 	size = 'medium',
 }) {
 	const resolvedSize = SIZES[size] ? size : 'medium';
-	const { width, height, fontSize } = SIZES[resolvedSize];
+	const { width, height: fullHeight, fontSize } = SIZES[resolvedSize];
 	const sizeClass = `cmChordDiagram--${resolvedSize}`;
-	const padding = { top: 35, left: 10, right: 10, bottom: 10 };
+
+	// Inline diagrams render no label, so reclaim the vertical band reserved
+	// for it: the diagram is LABEL_BAND shorter and the markers move up, while
+	// the fretboard (gridHeight) stays identical to the labeled version.
+	const hasLabel = Boolean(chordName);
+	const height = hasLabel ? fullHeight : fullHeight - LABEL_BAND;
+	const padding = {
+		top: hasLabel ? LABELED_TOP : LABELED_TOP - LABEL_BAND,
+		left: 10,
+		right: 10,
+		bottom: 10,
+	};
 	const gridWidth = width - padding.left - padding.right;
 	const gridHeight = height - padding.top - padding.bottom;
 	const stringSpacing = gridWidth / (NUM_STRINGS - 1);

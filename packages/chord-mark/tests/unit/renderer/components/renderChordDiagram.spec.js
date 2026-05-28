@@ -130,4 +130,36 @@ describe('renderChordDiagram', () => {
 			6
 		);
 	});
+
+	test('drops the label band height for inline diagrams (no chord name)', () => {
+		const frets = [null, 3, 2, 0, 1, 0];
+		const labeled = renderChordDiagram({ chordName: 'C', frets });
+		const inline = renderChordDiagram({ chordName: '', frets });
+
+		// Labeled keeps the full medium height; inline drops the 15px label band.
+		expect(labeled).toContain('viewBox="0 0 70 105"');
+		expect(labeled).toContain('height="105"');
+		expect(inline).toContain('viewBox="0 0 70 90"');
+		expect(inline).toContain('height="90"');
+		expect(inline).not.toContain('cmChordDiagram-label');
+	});
+
+	test('keeps the fretboard size identical with or without a label', () => {
+		const frets = [null, 3, 2, 0, 1, 0];
+		const labeled = renderChordDiagram({ chordName: 'C', frets });
+		const inline = renderChordDiagram({ chordName: '', frets });
+
+		// Only the empty label band is removed, so the fretboard (the span from
+		// the first to the last fret line) is identical in both diagrams.
+		const fretYs = (svg) =>
+			[
+				...svg.matchAll(
+					/class="cmChordDiagram-fret" x1="\d+" y1="(\d+)"/g
+				),
+			]
+				.map((m) => Number(m[1]))
+				.sort((a, b) => a - b);
+		const span = (ys) => ys[ys.length - 1] - ys[0];
+		expect(span(fretYs(inline))).toBe(span(fretYs(labeled)));
+	});
 });
