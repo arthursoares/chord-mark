@@ -56,20 +56,23 @@
 		font-family: inherit;
 	}
 
-	// Size variants
+	// Size variants.
+	// These MUST match the SVG viewBox dimensions in renderChordDiagram.js
+	// (the SIZES map); otherwise the default preserveAspectRatio scales and
+	// letterboxes the diagram inside a mismatched box.
 	&--small {
 		width: 50px;
-		height: 65px;
+		height: 80px;
 	}
 
 	&--medium {
 		width: 70px;
-		height: 90px;
+		height: 105px;
 	}
 
 	&--large {
 		width: 100px;
-		height: 125px;
+		height: 140px;
 	}
 }
 
