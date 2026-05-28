@@ -32,11 +32,14 @@ export default function renderChordDictionary(
 	const diagrams = chordNames
 		.map((chordName) => {
 			const { frets } = chordDefinitions[chordName];
-			// Parse and normalize the chord name to match how it appears in the song
+			// Parse and normalize the chord name to match how it appears in the song.
+			// chordParserFactory returns a truthy `{ error }` object on failure,
+			// so fall back to the raw name whenever parsing did not succeed.
 			const parsedChord = parseChord(chordName);
-			const normalizedName = parsedChord
-				? renderChord(parsedChord)
-				: chordName;
+			const normalizedName =
+				parsedChord && !parsedChord.error
+					? renderChord(parsedChord)
+					: chordName;
 			return renderChordDiagram({
 				chordName: normalizedName,
 				frets,

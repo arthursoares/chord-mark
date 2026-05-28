@@ -1,8 +1,41 @@
-import isChordLine from '../../../../src/parser/matchers/isChordLine';
+import isChordLine, {
+	extractInlineVoicing,
+} from '../../../../src/parser/matchers/isChordLine';
 
 describe('isChordLine', () => {
 	test('Module', () => {
 		expect(isChordLine).toBeInstanceOf(Function);
+	});
+});
+
+describe('extractInlineVoicing', () => {
+	test('returns the token unchanged when there is no inline voicing', () => {
+		expect(extractInlineVoicing('Cmaj7')).toEqual({
+			cleanToken: 'Cmaj7',
+			voicing: undefined,
+		});
+	});
+
+	test('parses digit frets and muted strings', () => {
+		expect(extractInlineVoicing('Cmaj7[x32010]')).toEqual({
+			cleanToken: 'Cmaj7',
+			voicing: [null, 3, 2, 0, 1, 0],
+		});
+	});
+
+	test('parses letter frets as positions 10 and above', () => {
+		// a => 10, c => 12, o => 24
+		expect(extractInlineVoicing('Cmaj7[c0000o]')).toEqual({
+			cleanToken: 'Cmaj7',
+			voicing: [12, 0, 0, 0, 0, 24],
+		});
+	});
+
+	test('keeps trailing beat markers on the cleaned token', () => {
+		expect(extractInlineVoicing('Cmaj7[x32010]..')).toEqual({
+			cleanToken: 'Cmaj7..',
+			voicing: [null, 3, 2, 0, 1, 0],
+		});
 	});
 });
 

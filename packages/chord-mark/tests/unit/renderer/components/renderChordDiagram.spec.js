@@ -89,4 +89,45 @@ describe('renderChordDiagram', () => {
 		expect(small).toContain('cmChordDiagram--small');
 		expect(large).toContain('cmChordDiagram--large');
 	});
+
+	test('falls back to medium class for an unknown size', () => {
+		const result = renderChordDiagram({
+			chordName: 'C',
+			frets: [null, 3, 2, 0, 1, 0],
+			size: 'bogus',
+		});
+
+		// Dimensions already fall back to medium; the CSS class must match,
+		// otherwise the diagram is rendered with no themed styles at all.
+		expect(result).toContain('viewBox="0 0 70 105"');
+		expect(result).toContain('cmChordDiagram--medium');
+		expect(result).not.toContain('cmChordDiagram--bogus');
+	});
+
+	test('renders an all-open chord with nut and open markers', () => {
+		const result = renderChordDiagram({
+			chordName: 'Em7add11',
+			frets: [0, 0, 0, 0, 0, 0],
+		});
+
+		// startFret falls back to 1, so the nut must be drawn (not a fret number)
+		expect(result).toContain('cmChordDiagram-nut');
+		expect(result).not.toContain('cmChordDiagram-fretNumber');
+		expect((result.match(/cmChordDiagram-openString/g) || []).length).toBe(
+			6
+		);
+	});
+
+	test('renders an all-muted chord with nut and muted markers', () => {
+		const result = renderChordDiagram({
+			chordName: 'X',
+			frets: [null, null, null, null, null, null],
+		});
+
+		expect(result).toContain('cmChordDiagram-nut');
+		expect(result).not.toContain('cmChordDiagram-fretNumber');
+		expect((result.match(/cmChordDiagram-mutedString/g) || []).length).toBe(
+			6
+		);
+	});
 });

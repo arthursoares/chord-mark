@@ -58,4 +58,17 @@ describe('renderChordDictionary', () => {
 
 		expect(result).toContain('cmChordDiagram--large');
 	});
+
+	test('keeps the raw name as label when the chord cannot be parsed', () => {
+		const definitions = {
+			Foobar: { frets: [null, 3, 2, 0, 1, 0], source: 'directive' },
+		};
+
+		const result = renderChordDictionary(definitions);
+
+		// chord-symbol cannot parse "Foobar", so the user's own name must be
+		// kept as the diagram label rather than rendering a label-less diagram.
+		expect(result).toContain('cmChordDiagram-label');
+		expect(result).toContain('>Foobar<');
+	});
 });

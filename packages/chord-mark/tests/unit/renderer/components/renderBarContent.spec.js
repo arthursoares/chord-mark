@@ -309,3 +309,64 @@ describe('symbolType', () => {
 		});
 	});
 });
+
+describe('inline chord diagrams', () => {
+	const renderBar = (input, options) => {
+		const parsed = forEachChordInChordLine(
+			parseChordLine(input),
+			(chord) => (chord.symbol = getChordSymbol(chord.model))
+		);
+		return renderBarContent(parsed.allBars[0], false, options);
+	};
+
+	test('does not render diagrams when showInlineDiagrams is false', () => {
+		const rendered = renderBar('G', {
+			chordDefinitions: { G: { frets: [3, 2, 0, 0, 0, 3] } },
+		});
+
+		expect(rendered).not.toContain('cmChordDiagram');
+	});
+
+	test('renders a diagram from an inline voicing override', () => {
+		const rendered = renderBar('Cmaj7[x32000]', {
+			showInlineDiagrams: true,
+		});
+
+		expect(rendered).toContain('cmChordDiagram');
+	});
+
+	test('renders a diagram from a chord definition lookup', () => {
+		const rendered = renderBar('G', {
+			showInlineDiagrams: true,
+			chordDefinitions: { G: { frets: [3, 2, 0, 0, 0, 3] } },
+		});
+
+		expect(rendered).toContain('cmChordDiagram');
+	});
+
+	test('renders no diagram when no voicing is available for the chord', () => {
+		const rendered = renderBar('G', {
+			showInlineDiagrams: true,
+			chordDefinitions: {},
+		});
+
+		expect(rendered).not.toContain('cmChordDiagram');
+	});
+
+	test('renders no diagram when the chord has no resolvable symbol', () => {
+		// A chord whose model carries no input symbol cannot be matched to a
+		// definition; voicing lookup must bail out without throwing.
+		const bar = {
+			allChords: [{ symbol: 'X', duration: 1, model: { input: {} } }],
+			shouldPrintChordsDuration: false,
+		};
+
+		const rendered = renderBarContent(bar, false, {
+			showInlineDiagrams: true,
+			chordDefinitions: { G: { frets: [3, 2, 0, 0, 0, 3] } },
+		});
+
+		expect(rendered).not.toContain('cmChordDiagram');
+		expect(rendered).toContain('X');
+	});
+});

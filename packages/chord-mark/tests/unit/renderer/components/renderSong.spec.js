@@ -1175,6 +1175,22 @@ describe('Chord diagrams', () => {
 		expect(result).not.toContain('cmChordDictionary');
 	});
 
+	test('renders without diagrams when parsedSong has no chordDefinitions', () => {
+		// A song parsed before the chord-diagram feature (or with no #chord
+		// directives) has no chordDefinitions key; renderSong must default it.
+		const parsedSong = {
+			allLines: [],
+			allChords: [],
+			allKeys: { auto: null, explicit: [] },
+		};
+
+		const result = renderSong(parsedSong, {
+			showChordDiagrams: 'dictionary',
+		});
+
+		expect(result).not.toContain('cmChordDictionary');
+	});
+
 	test('respects diagramPosition option', () => {
 		const parsedSong = {
 			allLines: [],

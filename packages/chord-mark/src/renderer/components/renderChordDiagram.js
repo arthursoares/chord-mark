@@ -94,8 +94,9 @@ export default function renderChordDiagram({
 	frets,
 	size = 'medium',
 }) {
-	const { width, height, fontSize } = SIZES[size] || SIZES.medium;
-	const sizeClass = `cmChordDiagram--${size}`;
+	const resolvedSize = SIZES[size] ? size : 'medium';
+	const { width, height, fontSize } = SIZES[resolvedSize];
+	const sizeClass = `cmChordDiagram--${resolvedSize}`;
 	const padding = { top: 35, left: 10, right: 10, bottom: 10 };
 	const gridWidth = width - padding.left - padding.right;
 	const gridHeight = height - padding.top - padding.bottom;
