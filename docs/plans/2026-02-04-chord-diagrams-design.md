@@ -43,13 +43,20 @@ Directives can appear anywhere but typically go at the top of the song, after ke
 
 ### Inline Voicing Override
 
-For one-off voicings, append brackets to any chord symbol:
+For one-off voicings, append brackets to any chord symbol. Two
+interchangeable forms are accepted:
 
 ```
-| Cmaj7[x35453] . Am7 . |
+| Cmaj7[x35453] . Am7 . |          // compact: 6 chars, 0-9 / a-o (10-24) / x
+| Cmaj7[x,12,10,12,12,x] . Am7 . | // decimal: comma-separated, readable up the neck
 ```
 
-This overrides any library definition for just that occurrence.
+In the compact form each character is one string (low E → high e): `0-9`
+for frets 0-9, `a-o` for frets 10-24, `x` for muted. The decimal form uses
+six comma-separated tokens, each `x` or a fret `0-24`. Both decode to the
+same `(number|null)[6]` array; an out-of-range or wrong-length voicing is
+ignored (the token is left as-is and won't parse as a chord). Either form
+overrides any library definition for just that occurrence.
 
 ### Matching Behavior
 

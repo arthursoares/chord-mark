@@ -37,6 +37,53 @@ describe('extractInlineVoicing', () => {
 			voicing: [null, 3, 2, 0, 1, 0],
 		});
 	});
+
+	describe('comma-separated decimal form', () => {
+		test('parses an open-position comma voicing', () => {
+			expect(extractInlineVoicing('A[0,2,2,1,0,0]')).toEqual({
+				cleanToken: 'A',
+				voicing: [0, 2, 2, 1, 0, 0],
+			});
+		});
+
+		test('parses two-digit frets up the neck', () => {
+			expect(extractInlineVoicing('Cmaj7[x,12,10,12,12,x]')).toEqual({
+				cleanToken: 'Cmaj7',
+				voicing: [null, 12, 10, 12, 12, null],
+			});
+		});
+
+		test('keeps trailing beat markers with the comma form', () => {
+			expect(extractInlineVoicing('Cmaj7[x,12,10,12,12,x]..')).toEqual({
+				cleanToken: 'Cmaj7..',
+				voicing: [null, 12, 10, 12, 12, null],
+			});
+		});
+
+		test('rejects an out-of-range fret (> 24)', () => {
+			expect(extractInlineVoicing('Cmaj7[x,9,40,1,1,1]')).toEqual({
+				cleanToken: 'Cmaj7[x,9,40,1,1,1]',
+				voicing: undefined,
+			});
+		});
+
+		test('rejects the wrong number of strings', () => {
+			expect(extractInlineVoicing('Cmaj7[x,9,11]')).toEqual({
+				cleanToken: 'Cmaj7[x,9,11]',
+				voicing: undefined,
+			});
+		});
+	});
+});
+
+describe('isChordLine detects comma-form inline voicings', () => {
+	test('legacy bracket form is still a chord line', () => {
+		expect(isChordLine('Cmaj7[x32000]')).toBe(true);
+	});
+
+	test('comma decimal form is a chord line', () => {
+		expect(isChordLine('Cmaj7[x,12,10,12,12,x]')).toBe(true);
+	});
 });
 
 describe.each([
