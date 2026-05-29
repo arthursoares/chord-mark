@@ -106,4 +106,46 @@ Test`;
 		// Fret 5 would be rendered relative to start fret
 		expect(rendered).toContain('cmChordDiagram-dot');
 	});
+
+	describe('comma-separated decimal inline voicings', () => {
+		test('parses a comma voicing up the neck into the chord model', () => {
+			const parsed = parseSong(`Cmaj7[x,12,10,12,12,x]....
+Test`);
+
+			const chordLine = parsed.allLines.find((l) => l.type === 'chord');
+			expect(
+				chordLine.model.allBars[0].allChords[0].inlineVoicing
+			).toEqual([null, 12, 10, 12, 12, null]);
+		});
+
+		test('renders an inline diagram from a comma voicing', () => {
+			const rendered = renderSong(
+				parseSong(`Cmaj7[x,12,10,12,12,x]....
+Test`),
+				{ showChordDiagrams: 'inline', diagramSize: 'small' }
+			);
+
+			expect(rendered).toContain('cmChordWithDiagram');
+			expect(rendered).toContain('cmChordDiagram');
+			// 12th-fret voicing => high position => a fret-number indicator
+			expect(rendered).toContain('cmChordDiagram-fretNumber');
+		});
+
+		test('comma form renders identically to the compact form', () => {
+			// [x,12,10,12,12,x] === [xcaccx] (c=12, a=10)
+			const opts = { showChordDiagrams: 'inline', diagramSize: 'small' };
+			const comma = renderSong(
+				parseSong(`Cmaj7[x,12,10,12,12,x]....
+Test`),
+				opts
+			);
+			const compact = renderSong(
+				parseSong(`Cmaj7[xcaccx]....
+Test`),
+				opts
+			);
+
+			expect(comma).toBe(compact);
+		});
+	});
 });
