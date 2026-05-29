@@ -108,9 +108,19 @@ export default function renderChordDiagram({
 	// the fretboard (gridHeight) stays identical to the labeled version.
 	const hasLabel = Boolean(chordName);
 	const height = hasLabel ? fullHeight : fullHeight - LABEL_BAND;
+
+	// Reserve enough left margin for the fret-position number so a two-digit
+	// position (e.g. "10") is not clipped at the viewBox edge. Single-digit /
+	// open-position diagrams keep the default 10px margin.
+	const startFret = calculateStartFret(frets);
+	const fretNumberFont = fontSize * 0.8;
+	const fretNumberWidth =
+		startFret > 1 ? String(startFret).length * fretNumberFont * 0.6 : 0;
+	const leftMargin = Math.max(10, Math.ceil(fretNumberWidth) + 4);
+
 	const padding = {
 		top: hasLabel ? LABELED_TOP : LABELED_TOP - LABEL_BAND,
-		left: 10,
+		left: leftMargin,
 		right: 10,
 		bottom: 10,
 	};
@@ -118,7 +128,6 @@ export default function renderChordDiagram({
 	const gridHeight = height - padding.top - padding.bottom;
 	const stringSpacing = gridWidth / (NUM_STRINGS - 1);
 	const fretSpacing = gridHeight / NUM_FRETS;
-	const startFret = calculateStartFret(frets);
 	const grid = { padding, gridWidth, gridHeight, stringSpacing, fretSpacing };
 
 	const elements = [];
@@ -140,8 +149,8 @@ export default function renderChordDiagram({
 	} else {
 		const fretNumY = padding.top + fretSpacing / 2 + 4;
 		elements.push(
-			`<text class="cmChordDiagram-fretNumber" x="${padding.left - 5}" y="${fretNumY}" ` +
-				`text-anchor="end" font-size="${fontSize * 0.8}">${startFret}</text>`
+			`<text class="cmChordDiagram-fretNumber" x="${padding.left - 4}" y="${fretNumY}" ` +
+				`text-anchor="end" font-size="${fretNumberFont}">${startFret}</text>`
 		);
 	}
 

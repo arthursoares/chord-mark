@@ -162,4 +162,37 @@ describe('renderChordDiagram', () => {
 		const span = (ys) => ys[ys.length - 1] - ys[0];
 		expect(span(fretYs(inline))).toBe(span(fretYs(labeled)));
 	});
+
+	const leftMargin = (svg) =>
+		Number(svg.match(/cmChordDiagram-string" x1="([\d.]+)"/)[1]);
+
+	test('widens the left margin so a two-digit fret position is not clipped', () => {
+		// Voicing up at the 10th fret -> position number "10" must fit inside
+		// the viewBox instead of being clipped at the left edge.
+		const result = renderChordDiagram({
+			chordName: 'C',
+			frets: [null, 12, 10, 12, 12, null],
+		});
+
+		expect(result).toContain('cmChordDiagram-fretNumber');
+		expect(result).toContain('>10<');
+		// the position label's left edge must stay within the viewBox (x >= 0)
+		const fx = Number(
+			result.match(/cmChordDiagram-fretNumber" x="([\d.]+)"/)[1]
+		);
+		const fretFont = 12 * 0.8; // medium fontSize * 0.8
+		expect(fx - 2 * fretFont * 0.6).toBeGreaterThanOrEqual(0);
+		// grid was pushed right to make room
+		expect(leftMargin(result)).toBeGreaterThan(10);
+	});
+
+	test('keeps the default left margin for single-digit positions', () => {
+		const result = renderChordDiagram({
+			chordName: 'Bm',
+			frets: [null, 7, 9, 9, 8, 7],
+		});
+
+		expect(result).toContain('>7<');
+		expect(leftMargin(result)).toBe(10);
+	});
 });
