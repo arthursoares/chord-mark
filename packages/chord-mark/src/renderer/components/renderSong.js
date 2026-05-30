@@ -21,6 +21,7 @@ import renderAllChords from '../helpers/renderAllChords';
 
 import lineTypes from '../../parser/lineTypes';
 import replaceRepeatedBars from '../replaceRepeatedBars';
+import getInlineChordVoicings from '../../parser/getInlineChordVoicings';
 
 import { defaultTimeSignature } from '../../parser/syntax';
 
@@ -84,6 +85,13 @@ export default function renderSong(
 ) {
 	let { allLines, allKeys, chordDefinitions = {} } = parsedSong;
 
+	// The dictionary shows `chord` directive definitions plus any chords that
+	// carry an inline voicing; directive definitions win on a name conflict.
+	const dictionaryDefinitions = {
+		...getInlineChordVoicings(allLines),
+		...chordDefinitions,
+	};
+
 	let isFirstLyricLineOfSection = false;
 	let contextTimeSignature = defaultTimeSignature.string;
 	let previousBarTimeSignature;
@@ -127,7 +135,7 @@ export default function renderSong(
 	let chordDictionaryBottom = '';
 
 	if (showChordDiagrams === 'dictionary' || showChordDiagrams === 'both') {
-		const dictionaryHtml = renderChordDictionary(chordDefinitions, {
+		const dictionaryHtml = renderChordDictionary(dictionaryDefinitions, {
 			position: diagramPosition,
 			size: diagramSize,
 			useShortNamings,

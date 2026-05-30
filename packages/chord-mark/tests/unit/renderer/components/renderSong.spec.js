@@ -1373,3 +1373,28 @@ _A tris _te`;
 		expect(rendered).toContain('cmChordWithDiagram');
 	});
 });
+
+describe('inline voicings feed the chord dictionary', () => {
+	test('builds a dictionary from inline voicings even with no chord directives', () => {
+		const rendered = renderSong(
+			parseSong('A7+[5,x,6,6,5,x] Bm7/F#[2,x,0,2,0,x]\n_some lyric'),
+			{ showChordDiagrams: 'dictionary' }
+		);
+
+		expect(rendered).toContain('cmChordDictionary');
+		// one diagram per distinct inline-voiced chord
+		expect((rendered.match(/cmChordDiagram--/g) || []).length).toBe(2);
+	});
+
+	test('merges directive and inline-voiced chords in the dictionary', () => {
+		const rendered = renderSong(
+			parseSong(
+				'chord G7 320001\nA7+[5,x,6,6,5,x] Bm7/F#[2,x,0,2,0,x]\n_some lyric'
+			),
+			{ showChordDiagrams: 'dictionary' }
+		);
+
+		// G7 (directive) + A7+ + Bm7/F# (inline) = 3 entries
+		expect((rendered.match(/cmChordDiagram--/g) || []).length).toBe(3);
+	});
+});
