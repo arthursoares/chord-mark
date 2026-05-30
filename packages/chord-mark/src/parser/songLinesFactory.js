@@ -70,6 +70,12 @@ const defaultTimeSignature = '4/4';
  * @property {String} [symbol] - rendering property
  */
 
+/**
+ * @typedef {SongLine} SongComposerLine
+ * @type {Object}
+ * @property {ComposerDeclaration} model
+ */
+
 export default function songLinesFactory() {
 	const allLines = [];
 	const sectionsStats = {};
@@ -332,6 +338,7 @@ export default function songLinesFactory() {
 				(line) =>
 					!(
 						isTimeSignature(line) ||
+						isComposerDeclaration(line) ||
 						isKeyDeclaration(line) ||
 						isEmptyLine(line)
 					)

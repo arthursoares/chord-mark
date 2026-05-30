@@ -419,18 +419,20 @@ Hello`;
 		});
 	});
 
-	test('exposes the composer when a composer directive is present', () => {
-		const parsed = parseSong(`composer Antonio Carlos Jobim
+	describe('Composer', () => {
+		test('exposes the composer when a composer directive is present', () => {
+			const parsed = parseSong(`composer Antonio Carlos Jobim
 C.. G..
 Hello world`);
 
-		expect(parsed.composer).toBe('Antonio Carlos Jobim');
-	});
+			expect(parsed.composer).toBe('Antonio Carlos Jobim');
+		});
 
-	test('composer is undefined when no composer directive is present', () => {
-		const parsed = parseSong(`C.. G..
+		test('composer is undefined when no composer directive is present', () => {
+			const parsed = parseSong(`C.. G..
 Hello world`);
 
-		expect(parsed.composer).toBeUndefined();
+			expect(parsed.composer).toBeUndefined();
+		});
 	});
 });

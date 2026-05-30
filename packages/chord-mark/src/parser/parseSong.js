@@ -16,6 +16,7 @@ import getComposerInSong from './getComposerInSong';
  * @property {SongLine[]} allLines
  * @property {SongChord[]} allChords
  * @property {SongKeys} allKeys
+ * @property {String} [composer]
  */
 
 /**

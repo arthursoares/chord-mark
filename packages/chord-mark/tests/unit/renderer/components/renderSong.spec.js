@@ -182,6 +182,42 @@ outro`;
 		expect(toText(rendered)).toBe(expected);
 	});
 
+	test('treats a section containing only a composer directive as empty and copies it', () => {
+		const input = `#v
+A B
+verseLine
+#v
+composer Tom Jobim`;
+		const expected = `Verse 1
+|A     |B     |
+verseLine
+Verse 2
+|A     |B     |
+verseLine
+|A     |B     |`;
+		const rendered = renderSongText(input, { expandSectionCopy: true });
+		expect(toText(rendered)).toBe(expected);
+	});
+
+	test('does not treat a section as empty when it has content after a composer directive', () => {
+		const input = `#v
+A B
+verseLine
+#v
+composer Tom Jobim
+C D
+otherLine`;
+		const expected = `Verse 1
+|A     |B     |
+verseLine
+Verse 2
+|A     |B     |
+|C     |D     |
+otherLine`;
+		const rendered = renderSongText(input, { expandSectionCopy: true });
+		expect(toText(rendered)).toBe(expected);
+	});
+
 	test('should not repeat chords when autoRepeatChords === false', () => {
 		const input = `#v
 A B

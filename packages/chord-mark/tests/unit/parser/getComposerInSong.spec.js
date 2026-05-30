@@ -2,9 +2,16 @@ import getComposerInSong from '../../../src/parser/getComposerInSong';
 import lineTypes from '../../../src/parser/lineTypes';
 
 describe('getComposerInSong', () => {
+	test('Module', () => {
+		expect(getComposerInSong).toBeInstanceOf(Function);
+	});
+
 	test('returns the composer name when a composer line exists', () => {
 		const allLines = [
-			{ type: lineTypes.COMPOSER_DECLARATION, model: { string: 'Tom Jobim' } },
+			{
+				type: lineTypes.COMPOSER_DECLARATION,
+				model: { string: 'Tom Jobim' },
+			},
 			{ type: lineTypes.LYRIC, model: { lyrics: 'hello' } },
 		];
 		expect(getComposerInSong(allLines)).toBe('Tom Jobim');
