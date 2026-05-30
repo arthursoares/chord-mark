@@ -25,6 +25,17 @@ verseLine2`;
 		expect(element.nodeName).toBe('DIV');
 		expect(element.childElementCount).toBe(4);
 	});
+
+	test('does not render the composer directive into the chart', () => {
+		const parsedSong = parseSong(`composer Tom Jobim
+C.. G..
+Hello world`);
+
+		const rendered = renderSong(parsedSong);
+
+		expect(rendered).not.toContain('Tom Jobim');
+		expect(rendered).not.toContain('composer');
+	});
 });
 
 describe('autoRepeatChords', () => {
