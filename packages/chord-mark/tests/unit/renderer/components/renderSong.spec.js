@@ -3,6 +3,7 @@ import htmlToElement from '../../../../src/core/dom/htmlToElement';
 import parseSong from '../../../../src/parser/parseSong';
 import toText from '../../helpers/toText';
 import lineTypes from '../../../../src/parser/lineTypes';
+import stripTags from '../../../../src/core/dom/stripTags';
 
 function renderSongText(songTxt, options = {}) {
 	return renderSong(parseSong(songTxt), options);
@@ -1325,5 +1326,50 @@ describe('Chord diagrams', () => {
 		expect(result).not.toContain('undefined');
 		// Dictionary should still render
 		expect(result).toContain('cmChordDictionary');
+	});
+});
+
+describe('chord diagrams + wrapped chord/lyric lines', () => {
+	// The wrap renderer tokenizes by extracting text from the chord-line HTML,
+	// which would pull an inline diagram SVG's marker glyphs (fret number, ×, ○)
+	// into the chord text. Inline diagrams must therefore be suppressed when
+	// wrapping; the dictionary is unaffected.
+	const song = `chord A6 x02220
+A6[5,x,4,6,5,x] Cdim7[8,x,7,8,7,x]
+_A tris _te`;
+
+	test('does not leak diagram markers into chords when wrapping (inline)', () => {
+		const rendered = renderSong(parseSong(song), {
+			showChordDiagrams: 'inline',
+			alignChordsWithLyrics: true,
+			wrapChordLyricLines: true,
+		});
+
+		expect(rendered).not.toContain('cmChordWithDiagram');
+		// no diagram marker glyphs leaked into the (diagram-free) output
+		const text = stripTags(rendered);
+		expect(text).not.toContain('×');
+		expect(text).not.toContain('○');
+	});
+
+	test('keeps the dictionary but suppresses inline diagrams when wrapping (both)', () => {
+		const rendered = renderSong(parseSong(song), {
+			showChordDiagrams: 'both',
+			alignChordsWithLyrics: true,
+			wrapChordLyricLines: true,
+		});
+
+		expect(rendered).toContain('cmChordDictionary');
+		expect(rendered).not.toContain('cmChordWithDiagram');
+	});
+
+	test('still renders inline diagrams when NOT wrapping', () => {
+		const rendered = renderSong(parseSong(song), {
+			showChordDiagrams: 'inline',
+			alignChordsWithLyrics: true,
+			wrapChordLyricLines: false,
+		});
+
+		expect(rendered).toContain('cmChordWithDiagram');
 	});
 });

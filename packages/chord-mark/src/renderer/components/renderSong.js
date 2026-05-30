@@ -88,6 +88,13 @@ export default function renderSong(
 	let contextTimeSignature = defaultTimeSignature.string;
 	let previousBarTimeSignature;
 
+	// Inline diagrams are incompatible with the wrap renderer (it tokenizes
+	// chord-line text and would pull the diagram SVG's marker glyphs into the
+	// chords), so suppress them when wrapping. The chord dictionary is unaffected.
+	const showInlineDiagrams =
+		!wrapChordLyricLines &&
+		(showChordDiagrams === 'inline' || showChordDiagrams === 'both');
+
 	allLines = renderAllChords(allLines, allKeys.auto, {
 		transposeValue,
 		accidentalsType,
@@ -291,9 +298,7 @@ export default function renderSong(
 							),
 							shouldPrintSubBeatDelimiters,
 							shouldPrintInlineTimeSignatures,
-							showInlineDiagrams:
-								showChordDiagrams === 'inline' ||
-								showChordDiagrams === 'both',
+							showInlineDiagrams,
 							chordDefinitions,
 							diagramSize,
 						});
