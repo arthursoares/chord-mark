@@ -7,6 +7,7 @@ export default {
 	chordPositionMarker: '_',
 	lyricLine: ':',
 	keyDeclarationPrefix: 'key ',
+	composerDeclarationPrefix: 'composer ',
 	noChord: 'NC',
 	sectionLabel: '#',
 	subBeatOpener: '[',
