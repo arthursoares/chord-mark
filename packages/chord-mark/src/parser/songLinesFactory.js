@@ -11,6 +11,7 @@ import isTimeSignature from './matchers/isTimeSignature';
 
 import parseChordDefinition from './parseChordDefinition';
 import parseChordLine from './parseChordLine';
+import parseComposerDeclaration from './parseComposerDeclaration';
 import parseKeyDeclaration from './parseKeyDeclaration';
 import parseLyricLine from './parseLyricLine';
 import parseSectionLabel from './parseSectionLabel';
@@ -19,6 +20,7 @@ import parseTimeSignature from './parseTimeSignature';
 import clearSpaces from './helper/clearSpaces';
 
 import { forEachChordInChordLine, getNthOfLabel } from './helper/songs';
+import isComposerDeclaration from './matchers/isComposerDeclaration';
 import isKeyDeclaration from './matchers/isKeyDeclaration';
 
 const defaultTimeSignature = '4/4';
@@ -110,6 +112,17 @@ export default function songLinesFactory() {
 			string,
 			type: lineTypes.KEY_DECLARATION,
 			model: _cloneDeep(currentKey),
+		};
+	}
+
+	/**
+	 * @returns {SongComposerLine}
+	 */
+	function getComposerDeclarationLine(string) {
+		return {
+			string,
+			type: lineTypes.COMPOSER_DECLARATION,
+			model: parseComposerDeclaration(string),
 		};
 	}
 
@@ -372,6 +385,8 @@ export default function songLinesFactory() {
 				line = getRepeatedChordLine(lineSrc);
 			} else if (isEmptyLine(lineSrc)) {
 				line = getEmptyLine(lineSrc);
+			} else if (isComposerDeclaration(lineSrc)) {
+				line = getComposerDeclarationLine(lineSrc);
 			} else if (isKeyDeclaration(lineSrc)) {
 				line = getKeyDeclarationLine(lineSrc);
 			} else if (isChordDefinition(lineSrc)) {
