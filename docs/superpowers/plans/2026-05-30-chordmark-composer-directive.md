@@ -26,10 +26,10 @@ In `syntax.js`, add to the default export object (after `keyDeclarationPrefix`):
 	composerDeclarationPrefix: 'composer ',
 ```
 
-In `lineTypes.js`, add to the enum object:
+In `lineTypes.js`, add to the enum object (adjacent to `KEY_DECLARATION`, matching the two-word naming of the siblings):
 
 ```javascript
-	COMPOSER: 'composer',
+	COMPOSER_DECLARATION: 'composerDeclaration',
 ```
 
 - [ ] **Step 2: Write the failing test**
@@ -203,7 +203,7 @@ Immediately after `getKeyDeclarationLine`, add:
 	function getComposerDeclarationLine(string) {
 		return {
 			string,
-			type: lineTypes.COMPOSER,
+			type: lineTypes.COMPOSER_DECLARATION,
 			model: parseComposerDeclaration(string),
 		};
 	}
@@ -253,7 +253,7 @@ import lineTypes from '../../../src/parser/lineTypes';
 describe('getComposerInSong', () => {
 	test('returns the composer name when a composer line exists', () => {
 		const allLines = [
-			{ type: lineTypes.COMPOSER, model: { string: 'Tom Jobim' } },
+			{ type: lineTypes.COMPOSER_DECLARATION, model: { string: 'Tom Jobim' } },
 			{ type: lineTypes.LYRIC, model: { lyrics: 'hello' } },
 		];
 		expect(getComposerInSong(allLines)).toBe('Tom Jobim');
@@ -284,7 +284,7 @@ import lineTypes from './lineTypes';
  */
 export default function getComposerInSong(allLines) {
 	const composerLine = allLines.find(
-		(line) => line.type === lineTypes.COMPOSER
+		(line) => line.type === lineTypes.COMPOSER_DECLARATION
 	);
 	return composerLine ? composerLine.model.string : undefined;
 }
@@ -394,7 +394,7 @@ In `renderSong.js`, find the branch:
 Add an adjacent branch (immediately before or after it):
 
 ```javascript
-				} else if (line.type === lineTypes.COMPOSER) {
+				} else if (line.type === lineTypes.COMPOSER_DECLARATION) {
 					// Composer is metadata for the header, never rendered inline
 					rendered = false;
 ```
