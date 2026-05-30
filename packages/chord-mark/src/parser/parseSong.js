@@ -8,6 +8,7 @@ import songLinesFactory from './songLinesFactory';
 import getAllChordDefinitions from './getAllChordDefinitions';
 import getAllChordsInSong from './getAllChordsInSong';
 import getAllKeysInSong from './getAllKeysInSong';
+import getComposerInSong from './getComposerInSong';
 
 /**
  * @typedef {Object} Song
@@ -57,11 +58,13 @@ export default function parseSong(songSrc, { windowObject } = {}) {
 	const allChords = getAllChordsInSong(allLines);
 	const allKeys = getAllKeysInSong(allLines, allChords);
 	const chordDefinitions = getAllChordDefinitions(allLines);
+	const composer = getComposerInSong(allLines);
 
 	return {
 		allLines,
 		allChords,
 		allKeys,
 		chordDefinitions,
+		composer,
 	};
 }
