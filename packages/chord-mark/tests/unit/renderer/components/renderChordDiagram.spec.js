@@ -71,7 +71,7 @@ describe('renderChordDiagram', () => {
 		});
 
 		expect(result).toContain('cmChordDiagram-fretNumber');
-		expect(result).toContain('>7<'); // The fret number should be 7
+		expect(result).toContain('>VII<'); // The fret number should be VII (Roman)
 	});
 
 	test('respects size option', () => {
@@ -166,33 +166,191 @@ describe('renderChordDiagram', () => {
 	const leftMargin = (svg) =>
 		Number(svg.match(/cmChordDiagram-string" x1="([\d.]+)"/)[1]);
 
-	test('widens the left margin so a two-digit fret position is not clipped', () => {
-		// Voicing up at the 10th fret -> position number "10" must fit inside
-		// the viewBox instead of being clipped at the left edge.
+	test('widens the left margin so a wide Roman numeral is not clipped', () => {
+		// Voicing at the 8th fret -> Roman "VIII" (4 chars) — verifies the
+		// wider label pushes the grid right and fits inside the viewBox.
 		const result = renderChordDiagram({
 			chordName: 'C',
-			frets: [null, 12, 10, 12, 12, null],
+			frets: [8, 10, 10, 9, 8, 8],
 		});
 
 		expect(result).toContain('cmChordDiagram-fretNumber');
-		expect(result).toContain('>10<');
+		expect(result).toContain('>VIII<');
 		// the position label's left edge must stay within the viewBox (x >= 0)
 		const fx = Number(
 			result.match(/cmChordDiagram-fretNumber" x="([\d.]+)"/)[1]
 		);
 		const fretFont = 12 * 0.8; // medium fontSize * 0.8
-		expect(fx - 2 * fretFont * 0.6).toBeGreaterThanOrEqual(0);
-		// grid was pushed right to make room
+		// "VIII" is 4 chars wide — left edge = fx - (4 chars * fretFont * 0.6)
+		expect(fx - 4 * fretFont * 0.6).toBeGreaterThanOrEqual(0);
+		// grid was pushed right to make room (VIII = 4 chars → leftMargin > 10)
 		expect(leftMargin(result)).toBeGreaterThan(10);
 	});
 
-	test('keeps the default left margin for single-digit positions', () => {
+	test('keeps the default left margin for Roman numerals up to 1 char wide', () => {
+		// startFret 10 → Roman "X" (1 char): fretNumberWidth = 1*9.6*0.6 = 5.76
+		// ceil(5.76)+4 = 10, so leftMargin stays at the minimum of 10.
+		const result = renderChordDiagram({
+			chordName: 'C',
+			frets: [null, 12, 10, 12, 12, null],
+		});
+
+		expect(result).toContain('>X<');
+		expect(leftMargin(result)).toBe(10);
+	});
+
+	// ── Roman numeral position indicator ──────────────────────────────────────
+
+	test('renders Roman V for startFret 5', () => {
+		// All frets 5-9, maxFret 9 > 5 frets, so startFret = 5
+		const result = renderChordDiagram({
+			chordName: 'A',
+			frets: [5, 7, 7, 6, 5, 5],
+		});
+
+		expect(result).toContain('cmChordDiagram-fretNumber');
+		expect(result).toContain('>V<');
+		expect(result).not.toContain('>5<');
+	});
+
+	test('renders Roman VIII for startFret 8', () => {
+		const result = renderChordDiagram({
+			chordName: 'C',
+			frets: [8, 10, 10, 9, 8, 8],
+		});
+
+		expect(result).toContain('>VIII<');
+		expect(result).not.toContain('>8<');
+	});
+
+	test('Roman VIII label is not clipped at the viewBox left edge', () => {
+		const result = renderChordDiagram({
+			chordName: 'C',
+			frets: [8, 10, 10, 9, 8, 8],
+		});
+
+		// x attribute of the fretNumber text (text-anchor="end", so this is rightmost)
+		const fx = Number(
+			result.match(/cmChordDiagram-fretNumber" x="([\d.]+)"/)[1]
+		);
+		const fretFont = 12 * 0.8; // medium fontSize * 0.8
+		// "VIII" = 4 chars; leftmost pixel = fx - 4 * fretFont * 0.6
+		expect(fx - 4 * fretFont * 0.6).toBeGreaterThanOrEqual(0);
+	});
+
+	test('renders Roman XII for startFret 12', () => {
+		const result = renderChordDiagram({
+			chordName: 'D',
+			frets: [null, 14, 14, 13, 12, 12],
+		});
+
+		expect(result).toContain('>XII<');
+		expect(result).not.toContain('>12<');
+	});
+
+	test('Roman XII label is not clipped at the viewBox left edge', () => {
+		const result = renderChordDiagram({
+			chordName: 'D',
+			frets: [null, 14, 14, 13, 12, 12],
+		});
+
+		const fx = Number(
+			result.match(/cmChordDiagram-fretNumber" x="([\d.]+)"/)[1]
+		);
+		const fretFont = 12 * 0.8;
+		// "XII" = 3 chars
+		expect(fx - 3 * fretFont * 0.6).toBeGreaterThanOrEqual(0);
+	});
+
+	// ── Barre lines ───────────────────────────────────────────────────────────
+
+	test('emits a barre line for an F-chord barre at fret 1', () => {
+		// F chord: [1,1,2,3,3,1] low-E→high-e  (all six strings at fret 1)
+		const result = renderChordDiagram({
+			chordName: 'F',
+			frets: [1, 3, 3, 2, 1, 1],
+		});
+
+		expect(result).toContain('cmChordDiagram-barre');
+	});
+
+	test('barre line spans from string 0 to string 5 for F chord', () => {
+		// frets [1,3,3,2,1,1]: strings at startFret(1): indices 0,4,5
+		// barre spans string 0 (x1) to string 5 (x2)
+		const result = renderChordDiagram({
+			chordName: 'F',
+			frets: [1, 3, 3, 2, 1, 1],
+		});
+
+		const barreLine = result.match(
+			/class="cmChordDiagram-barre"[^/]*x1="([\d.]+)"[^/]*x2="([\d.]+)"/
+		);
+		expect(barreLine).not.toBeNull();
+
+		// For medium size: leftMargin=10 (single-char Roman "I"), stringSpacing = (70-10-10)/5 = 10
+		const x1 = Number(barreLine[1]);
+		const x2 = Number(barreLine[2]);
+		expect(x1).toBe(10); // string 0: padding.left + 0 * stringSpacing
+		expect(x2).toBe(60); // string 5: padding.left + 5 * stringSpacing = 10 + 50
+	});
+
+	test('barre line for high-position chord at startFret', () => {
+		// Bm barre at 7: [null,7,9,9,8,7] → strings 1 and 5 are at startFret 7
 		const result = renderChordDiagram({
 			chordName: 'Bm',
 			frets: [null, 7, 9, 9, 8, 7],
 		});
 
-		expect(result).toContain('>7<');
-		expect(leftMargin(result)).toBe(10);
+		expect(result).toContain('cmChordDiagram-barre');
+	});
+
+	test('no barre line when fewer than 2 strings share the position fret', () => {
+		// C chord: [null,3,2,0,1,0] → only one string at startFret(1): string index 4
+		const result = renderChordDiagram({
+			chordName: 'C',
+			frets: [null, 3, 2, 0, 1, 0],
+		});
+
+		expect(result).not.toContain('cmChordDiagram-barre');
+	});
+
+	test('no barre line for non-barre voicing', () => {
+		// Am7: [null,0,2,0,1,0] — only one fretted string at startFret 1
+		const result = renderChordDiagram({
+			chordName: 'Am7',
+			frets: [null, 0, 2, 0, 1, 0],
+		});
+
+		expect(result).not.toContain('cmChordDiagram-barre');
+	});
+
+	test('no barre line for all-open chord', () => {
+		const result = renderChordDiagram({
+			chordName: 'Em7',
+			frets: [0, 0, 0, 0, 0, 0],
+		});
+
+		expect(result).not.toContain('cmChordDiagram-barre');
+	});
+
+	test('no barre line for all-muted chord', () => {
+		const result = renderChordDiagram({
+			chordName: 'X',
+			frets: [null, null, null, null, null, null],
+		});
+
+		expect(result).not.toContain('cmChordDiagram-barre');
+	});
+
+	test('falls back to Arabic numeral for fret positions beyond ROMAN array (> 24)', () => {
+		// Guitar frets above 24 are outside the ROMAN lookup; toRoman falls back
+		// to String(n) to avoid emitting undefined.
+		const result = renderChordDiagram({
+			chordName: 'High',
+			frets: [null, 25, 27, 27, 26, 25],
+		});
+
+		expect(result).toContain('cmChordDiagram-fretNumber');
+		expect(result).toContain('>25<');
 	});
 });

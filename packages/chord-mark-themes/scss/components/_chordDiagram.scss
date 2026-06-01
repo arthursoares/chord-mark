@@ -56,6 +56,12 @@
 		font-family: inherit;
 	}
 
+	&-barre {
+		stroke: var(--cm-diagram-dot-color);
+		stroke-width: 8.4; // ~2× dot radius for medium size (fretSpacing * 0.35 * 2 ≈ 8.4)
+		stroke-linecap: round;
+	}
+
 	// Size variants. Only the width is pinned; height is derived from each
 	// SVG's own viewBox aspect ratio. This keeps any viewBox in proportion
 	// (no letterboxing) and lets inline diagrams be shorter than labeled ones
