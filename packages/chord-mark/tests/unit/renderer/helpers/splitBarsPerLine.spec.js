@@ -313,13 +313,13 @@ describe('splitBarsPerLine', () => {
 		const result = splitBarsPerLine(lines, 1);
 
 		const lyricLines = result.filter((l) => l.type === lineTypes.LYRIC);
-		expect(lyricLines).toHaveLength(3);
+		// Reflow change: blank lyric chunks (the 2nd and 3rd bars carry no
+		// lyric text) are no longer emitted as empty lyric lines, so only the
+		// first chunk produces a lyric line.
+		expect(lyricLines).toHaveLength(1);
 
 		// First lyric chunk has the one positioned chord
 		expect(lyricLines[0].model.chordPositions).toHaveLength(1);
-		// Second and third chunks have no positioned chords
-		expect(lyricLines[1].model.chordPositions).toHaveLength(0);
-		expect(lyricLines[2].model.chordPositions).toHaveLength(0);
 	});
 
 	// -----------------------------------------------------------------------
@@ -352,5 +352,119 @@ describe('splitBarsPerLine', () => {
 		const chordLines = result.filter((l) => l.type === lineTypes.CHORD);
 		expect(chordLines).toHaveLength(1);
 		expect(chordLines[0].model.allBars).toHaveLength(1);
+	});
+
+	// -----------------------------------------------------------------------
+	// Reflow: merge contiguous chord(+lyric) runs and re-chunk to fill N bars
+	// -----------------------------------------------------------------------
+
+	describe('reflow (merge then re-chunk)', () => {
+		// 1. Lone bar absorbed: 9 lyric-less bars across 3 lines → [4,4,1]
+		test('absorbs lone bars across lyric-less lines into [4,4,1]', () => {
+			const lines = parsedLines(
+				'A7+ A°7 Bm7/F# DmM7(b5)\nA7+ Gm6 Bm7/F# E7(b9)\nA7+'
+			);
+			const result = splitBarsPerLine(lines, 4);
+			const chordLines = result.filter((l) => l.type === lineTypes.CHORD);
+			const lyricLines = result.filter((l) => l.type === lineTypes.LYRIC);
+			expect(lyricLines).toHaveLength(0);
+			expect(chordLines.map((l) => l.model.allBars.length)).toEqual([
+				4, 4, 1,
+			]);
+			chordLines.forEach((cl) => {
+				expect(cl.model.hasPositionedChords).toBe(false);
+			});
+		});
+
+		// 2. Lyric-less line merges with following positioned chord+lyric line
+		test('lyric-less line merges with following lyric line bars', () => {
+			// Gdim7 (1 bar, no lyric) + D6/F# Fdim7 E7 (3 bars, positioned lyric)
+			const lines = parsedLines(
+				'Gdim7\nD6/F# Fdim7 E7\n_one _two _three'
+			);
+			const result = splitBarsPerLine(lines, 4);
+			const chordLines = result.filter((l) => l.type === lineTypes.CHORD);
+			const lyricLines = result.filter((l) => l.type === lineTypes.LYRIC);
+			// 1 + 3 = 4 bars → one merged 4-bar chord line + one lyric line
+			expect(chordLines).toHaveLength(1);
+			expect(chordLines[0].model.allBars).toHaveLength(4);
+			expect(lyricLines).toHaveLength(1);
+			// lyric text preserved in order; first bar (Gdim7) has no word
+			expect(lyricLines[0].model.lyrics).toContain('one');
+			expect(lyricLines[0].model.lyrics).toContain('two');
+			expect(lyricLines[0].model.lyrics).toContain('three');
+			expect(lyricLines[0].model.lyrics.indexOf('one')).toBeLessThan(
+				lyricLines[0].model.lyrics.indexOf('two')
+			);
+		});
+
+		// 3. Two positioned chord+lyric lines merge & re-chunk
+		test('two positioned chord+lyric lines re-chunk to [4,2] at barsPerLine=4', () => {
+			const lines = parsedLines('A B C D\n_a _b _c _d\nE F\n_e _f');
+			const result = splitBarsPerLine(lines, 4);
+			const chordLines = result.filter((l) => l.type === lineTypes.CHORD);
+			const lyricLines = result.filter((l) => l.type === lineTypes.LYRIC);
+			expect(chordLines.map((l) => l.model.allBars.length)).toEqual([
+				4, 2,
+			]);
+			expect(lyricLines).toHaveLength(2);
+			expect(lyricLines[0].model.lyrics).toBe('a b c d');
+			expect(lyricLines[1].model.lyrics).toBe('e f');
+		});
+
+		test('two positioned chord+lyric lines merge into [6] at barsPerLine=6', () => {
+			const lines = parsedLines('A B C D\n_a _b _c _d\nE F\n_e _f');
+			const result = splitBarsPerLine(lines, 6);
+			const chordLines = result.filter((l) => l.type === lineTypes.CHORD);
+			const lyricLines = result.filter((l) => l.type === lineTypes.LYRIC);
+			expect(chordLines).toHaveLength(1);
+			expect(chordLines[0].model.allBars).toHaveLength(6);
+			expect(lyricLines).toHaveLength(1);
+			// single-space separator between the two lyric segments
+			expect(lyricLines[0].model.lyrics).toBe('a b c d e f');
+		});
+
+		// 4. Empty line breaks the run
+		test('empty line breaks the run (no merge across blank line)', () => {
+			const lines = parsedLines('A B\n\nC D');
+			const result = splitBarsPerLine(lines, 4);
+			const chordLines = result.filter((l) => l.type === lineTypes.CHORD);
+			const emptyLines = result.filter(
+				(l) => l.type === lineTypes.EMPTY_LINE
+			);
+			expect(emptyLines).toHaveLength(1);
+			expect(chordLines).toHaveLength(2);
+			expect(chordLines[0].model.allBars).toHaveLength(2);
+			expect(chordLines[1].model.allBars).toHaveLength(2);
+		});
+
+		// 5. Section label breaks the run
+		test('section label breaks the run (no merge across section)', () => {
+			const lines = parsedLines('A B\n#chorus\nC D');
+			const result = splitBarsPerLine(lines, 4);
+			const chordLines = result.filter((l) => l.type === lineTypes.CHORD);
+			const sectionLabels = result.filter(
+				(l) => l.type === lineTypes.SECTION_LABEL
+			);
+			expect(sectionLabels).toHaveLength(1);
+			expect(chordLines).toHaveLength(2);
+			expect(chordLines[0].model.allBars).toHaveLength(2);
+			expect(chordLines[1].model.allBars).toHaveLength(2);
+		});
+
+		// 6. Non-positioned lyric is not merged
+		test('non-positioned lyric pair is not merged with following chord line', () => {
+			// "C G\nhello world" is non-positioned; "Am F" follows
+			const lines = parsedLines('C G\nhello world\nAm F');
+			const result = splitBarsPerLine(lines, 4);
+			const chordLines = result.filter((l) => l.type === lineTypes.CHORD);
+			const lyricLines = result.filter((l) => l.type === lineTypes.LYRIC);
+			// not merged → two separate chord lines of 2 bars each
+			expect(chordLines).toHaveLength(2);
+			expect(chordLines[0].model.allBars).toHaveLength(2);
+			expect(chordLines[1].model.allBars).toHaveLength(2);
+			expect(lyricLines).toHaveLength(1);
+			expect(lyricLines[0].model.lyrics).toBe('hello world');
+		});
 	});
 });

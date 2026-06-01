@@ -62,10 +62,15 @@ function splitLyricModel(lyricModel, boundaryChordCounts) {
 		const chordStart = boundaryChordCounts[i];
 		const chordEnd = boundaryChordCounts[i + 1];
 
+		// The very first chunk always starts at the beginning of the lyric
+		// text (this also covers non-positioned lyrics, which carry no chord
+		// positions to anchor against).
 		const charStart =
 			chordStart < chordPositions.length
 				? chordPositions[chordStart]
-				: lyrics.length;
+				: chordStart === 0
+					? 0
+					: lyrics.length;
 
 		const charEnd =
 			chordEnd < chordPositions.length
@@ -76,8 +81,10 @@ function splitLyricModel(lyricModel, boundaryChordCounts) {
 			.slice(chordStart, chordEnd)
 			.map((pos) => pos - charStart);
 
+		// Trim a trailing separator space left at a chunk boundary (merged
+		// runs insert a single space between adjacent lyric segments).
 		return {
-			lyrics: lyrics.substring(charStart, charEnd),
+			lyrics: lyrics.substring(charStart, charEnd).replace(/ $/, ''),
 			chordPositions: newChordPositions,
 		};
 	});
@@ -116,11 +123,102 @@ function emitSplitLines(chordSongLine, lyricSongLine, barsPerLine) {
 			model: { ...chordModel, hasPositionedChords: chunkIsPositioned },
 		});
 
-		if (chunkLyric) {
+		if (chunkLyric && chunkLyric.lyrics !== '') {
 			result.push({ ...lyricSongLine, model: chunkLyric });
 		}
 	});
 	return result;
+}
+
+/**
+ * Determine whether a (chord, lyric?) pair can be merged into a reflow run.
+ * A pair is mergeable when it is either lyric-less, or paired with a
+ * positioned lyric (the chord line has positioned chords AND the lyric line
+ * carries chord positions).  A non-positioned lyric pair is NOT mergeable
+ * because the merge math is entirely position-based.
+ *
+ * @param {SongLine} chordSongLine
+ * @param {SongLine|null} lyricSongLine
+ * @returns {boolean}
+ */
+function isMergeable(chordSongLine, lyricSongLine) {
+	if (!lyricSongLine) {
+		return true;
+	}
+	return (
+		!!chordSongLine.model.hasPositionedChords &&
+		lyricSongLine.model.chordPositions.length > 0
+	);
+}
+
+/**
+ * Merge a run of (chord, lyric?) pairs into a single chord SongLine and an
+ * optional single lyric SongLine, then re-chunk them into rows of at most
+ * `barsPerLine` bars via `emitSplitLines`.
+ *
+ * @param {{chord: SongLine, lyric: SongLine|null}[]} run
+ * @param {number} barsPerLine
+ * @returns {SongLine[]}
+ */
+function emitMergedRun(run, barsPerLine) {
+	const mergedBars = [];
+	let mergedLyrics = '';
+	const mergedChordPositions = [];
+	let hasPositionedChords = false;
+	let hasAnyLyric = false;
+
+	run.forEach((item) => {
+		const itemBars = _cloneDeep(item.chord.model.allBars);
+
+		if (item.lyric) {
+			hasAnyLyric = true;
+			hasPositionedChords = true;
+			if (mergedLyrics !== '') {
+				mergedLyrics += ' ';
+			}
+			const offset = mergedLyrics.length;
+			mergedLyrics += item.lyric.model.lyrics;
+			item.lyric.model.chordPositions.forEach((pos) => {
+				mergedChordPositions.push(pos + offset);
+			});
+		} else {
+			const chordCount = countChordsInBars(itemBars);
+			for (let c = 0; c < chordCount; c++) {
+				mergedChordPositions.push(mergedLyrics.length);
+			}
+		}
+
+		mergedBars.push(...itemBars);
+	});
+
+	const firstChord = run[0].chord;
+	const mergedChordSongLine = {
+		...firstChord,
+		model: {
+			...firstChord.model,
+			allBars: mergedBars,
+			hasPositionedChords,
+		},
+	};
+
+	let mergedLyricSongLine = null;
+	if (hasAnyLyric) {
+		const lyricItem = run.find((item) => item.lyric);
+		mergedLyricSongLine = {
+			...lyricItem.lyric,
+			model: {
+				...lyricItem.lyric.model,
+				lyrics: mergedLyrics,
+				chordPositions: mergedChordPositions,
+			},
+		};
+	}
+
+	return emitSplitLines(
+		mergedChordSongLine,
+		mergedLyricSongLine,
+		barsPerLine
+	);
 }
 
 /**
@@ -139,15 +237,23 @@ export default function splitBarsPerLine(allLines, barsPerLine) {
 	}
 
 	const result = [];
+	let run = [];
 	let i = 0;
+
+	const flushRun = () => {
+		if (run.length > 0) {
+			result.push(...emitMergedRun(run, barsPerLine));
+			run = [];
+		}
+	};
 
 	while (i < allLines.length) {
 		const line = allLines[i];
-		const needsSplit =
-			line.type === lineTypes.CHORD &&
-			line.model.allBars.length > barsPerLine;
 
-		if (!needsSplit) {
+		if (line.type !== lineTypes.CHORD) {
+			// EMPTY_LINE, SECTION_LABEL or any other non-chord line breaks the
+			// current run and passes through unchanged (preserves spacing).
+			flushRun();
 			result.push(line);
 			i++;
 			continue;
@@ -157,9 +263,18 @@ export default function splitBarsPerLine(allLines, barsPerLine) {
 		const lyricLine =
 			nextLine && nextLine.type === lineTypes.LYRIC ? nextLine : null;
 
-		result.push(...emitSplitLines(line, lyricLine, barsPerLine));
+		if (isMergeable(line, lyricLine)) {
+			run.push({ chord: line, lyric: lyricLine });
+		} else {
+			// A chord line paired with a non-positioned lyric cannot join the
+			// position-based merge: flush, then split it on its own.
+			flushRun();
+			result.push(...emitSplitLines(line, lyricLine, barsPerLine));
+		}
 		i += lyricLine ? 2 : 1;
 	}
+
+	flushRun();
 
 	return result;
 }
