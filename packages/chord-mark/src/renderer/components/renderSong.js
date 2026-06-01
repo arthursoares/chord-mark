@@ -22,6 +22,7 @@ import renderAllChords from '../helpers/renderAllChords';
 import lineTypes from '../../parser/lineTypes';
 import replaceRepeatedBars from '../replaceRepeatedBars';
 import getInlineChordVoicings from '../../parser/getInlineChordVoicings';
+import splitBarsPerLine from '../helpers/splitBarsPerLine';
 
 import { defaultTimeSignature } from '../../parser/syntax';
 
@@ -53,6 +54,10 @@ import { defaultTimeSignature } from '../../parser/syntax';
  * @param {('none'|'dictionary'|'inline'|'both')} options.showChordDiagrams - controls chord diagram display
  * @param {('top'|'bottom')} options.diagramPosition - position for dictionary mode
  * @param {('small'|'medium'|'large')} options.diagramSize - size of chord diagrams
+ * @param {Number} [options.barsPerLine] - when set (>= 1), re-segments chord lines
+ *   into rows of at most this many bars ("Bar mode" lead-sheet grid).
+ *   The paired lyric line (if any) is split at the bar boundaries.
+ *   Default: undefined (OFF — current behaviour).
  * @returns {String} rendered HTML
  */
 // eslint-disable-next-line max-lines-per-function,complexity
@@ -81,9 +86,14 @@ export default function renderSong(
 		useShortNamings = true,
 		windowObject = undefined,
 		wrapChordLyricLines = false,
+		barsPerLine = undefined,
 	} = {}
 ) {
 	let { allLines, allKeys, chordDefinitions = {} } = parsedSong;
+
+	if (barsPerLine) {
+		allLines = splitBarsPerLine(allLines, barsPerLine);
+	}
 
 	// The dictionary shows `chord` directive definitions plus any chords that
 	// carry an inline voicing; directive definitions win on a name conflict.

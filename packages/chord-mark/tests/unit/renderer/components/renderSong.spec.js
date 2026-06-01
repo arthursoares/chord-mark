@@ -1398,3 +1398,80 @@ describe('inline voicings feed the chord dictionary', () => {
 		expect((rendered.match(/cmChordDiagram--/g) || []).length).toBe(3);
 	});
 });
+
+describe('barsPerLine', () => {
+	test('barsPerLine undefined → output identical to default (regression)', () => {
+		const song = 'C G Am F\nsome lyrics here';
+		expect(renderSongText(song, { barsPerLine: undefined })).toBe(
+			renderSongText(song)
+		);
+	});
+
+	test('barsPerLine 0 → output identical to default (regression)', () => {
+		const song = 'C G Am F\nsome lyrics here';
+		expect(renderSongText(song, { barsPerLine: 0 })).toBe(
+			renderSongText(song)
+		);
+	});
+
+	test('6-bar chord-only line with barsPerLine=2 renders 3 separate chord rows', () => {
+		// 6 bars: C G Am F Dm E → barsPerLine=2 → 3 rows of 2 bars
+		const rendered = renderSongText('C G Am F Dm E', {
+			barsPerLine: 2,
+			alignBars: false,
+			alignChordsWithLyrics: false,
+		});
+		const text = toText(rendered);
+		const lines = text.split('\n');
+		// All three lines should contain chord content
+		expect(lines).toHaveLength(3);
+	});
+
+	test('chord line with barsPerLine larger than bar count is unchanged', () => {
+		const song = 'C G';
+		expect(renderSongText(song, { barsPerLine: 99 })).toBe(
+			renderSongText(song)
+		);
+	});
+
+	test('chord line + positioned lyric, barsPerLine=1: lyric words appear on separate lines', () => {
+		// 2 bars, 2 positioned chords per bar → barsPerLine=1 → 2 pairs
+		const song = 'C.. G.. Am.. F..\n_one _two _three _four';
+		const rendered = renderSongText(song, {
+			barsPerLine: 1,
+			alignBars: false,
+			alignChordsWithLyrics: true,
+		});
+		const text = toText(rendered);
+		// words "one two" should appear on separate lines from "three four"
+		expect(text).toContain('one');
+		expect(text).toContain('three');
+		// "one" and "three" must be on different lines
+		const lines = text.split('\n').filter((l) => l.trim().length > 0);
+		const lineWithOne = lines.find((l) => l.includes('one'));
+		const lineWithThree = lines.find((l) => l.includes('three'));
+		expect(lineWithOne).not.toBe(lineWithThree);
+	});
+
+	test('barsPerLine renders valid HTML with correct number of paragraph elements', () => {
+		// 4 bars, barsPerLine=2 → 2 chord rows
+		const song = 'C G Am F';
+		const rendered = renderSongText(song, { barsPerLine: 2 });
+		const element = htmlToElement(rendered);
+		expect(element).toBeInstanceOf(Node);
+		// 2 chord rows rendered as 2 <p> elements
+		expect(element.childElementCount).toBe(2);
+	});
+
+	test('non-chord lines (section labels, empty lines) pass through unchanged', () => {
+		const song = `#v
+C G Am F
+
+#c
+F G`;
+		const rendered = renderSongText(song, { barsPerLine: 2 });
+		const text = toText(rendered);
+		expect(text).toContain('Verse');
+		expect(text).toContain('Chorus');
+	});
+});
