@@ -466,5 +466,29 @@ describe('splitBarsPerLine', () => {
 			expect(lyricLines).toHaveLength(1);
 			expect(lyricLines[0].model.lyrics).toBe('hello world');
 		});
+
+		// 7. Regression: merging a lyric-less chord line with a positioned
+		// chord+lyric must never emit a positioned chord line that is NOT
+		// immediately followed by its lyric line. The renderer's chord/lyric
+		// spacer assumes that invariant (it reads nextLine.model.chordPositions)
+		// and crashes with "Cannot read properties of undefined" otherwise.
+		test('never emits a positioned chord line without a following lyric line', () => {
+			// "Am Bm" is lyric-less; "C D" carries a positioned lyric. Merged
+			// into one run, at barsPerLine=2 the first chunk is all lyric-less
+			// bars (empty lyric slice) — it must not be flagged positioned.
+			const result = splitBarsPerLine(
+				parsedLines('Am Bm\nC D\n_x _y'),
+				2
+			);
+			result.forEach((line, i) => {
+				if (
+					line.type === lineTypes.CHORD &&
+					line.model.hasPositionedChords
+				) {
+					const next = result[i + 1];
+					expect(!!next && next.type === lineTypes.LYRIC).toBe(true);
+				}
+			});
+		});
 	});
 });

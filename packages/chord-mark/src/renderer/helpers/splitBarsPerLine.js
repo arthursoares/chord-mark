@@ -113,9 +113,17 @@ function emitSplitLines(chordSongLine, lyricSongLine, barsPerLine) {
 	const result = [];
 	chordModelChunks.forEach((chordModel, c) => {
 		const chunkLyric = lyricModelChunks ? lyricModelChunks[c] : null;
+		// Only emit a lyric line when it actually carries text.
+		const emitLyric = !!chunkLyric && chunkLyric.lyrics !== '';
+		// A chunk may be flagged as positioned ONLY when its lyric line is
+		// emitted: the renderer assumes a chord line with positioned chords is
+		// always immediately followed by its lyric line (it reads
+		// `nextLine.model.chordPositions`). Flagging a chunk positioned while
+		// suppressing its (empty) lyric line would leave the chord line
+		// followed by another chord line and crash the chord/lyric spacer.
 		const chunkIsPositioned =
 			!!chordSongLine.model.hasPositionedChords &&
-			!!chunkLyric &&
+			emitLyric &&
 			chunkLyric.chordPositions.length > 0;
 
 		result.push({
@@ -123,7 +131,7 @@ function emitSplitLines(chordSongLine, lyricSongLine, barsPerLine) {
 			model: { ...chordModel, hasPositionedChords: chunkIsPositioned },
 		});
 
-		if (chunkLyric && chunkLyric.lyrics !== '') {
+		if (emitLyric) {
 			result.push({ ...lyricSongLine, model: chunkLyric });
 		}
 	});
