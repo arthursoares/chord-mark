@@ -447,6 +447,37 @@ v2-line-1
 		expect(toText(rendered)).toBe(expected);
 	});
 
+	test('symbolType "roman" analyzes against the auto-detected key when none is declared', () => {
+		// without the auto-key fallback every minor chord renders as "i"
+		const keyless = `Dm7 Gm7 A7 Dm7
+la la la la`;
+		const rendered = renderSongText(keyless, {
+			symbolType: 'roman',
+			alignChordsWithLyrics: false,
+		});
+		const text = toText(rendered);
+		expect(text).toContain('iv⁷'); // Gm7 in the detected key of Dm
+		expect(text).toContain('V⁷'); // A7
+	});
+
+	test('= "chordsFirstLyricLine" keeps the first lyric line of a song without section labels', () => {
+		const unlabeled = `A7 B7
+line-1
+C7 D7
+line-2
+E7 F7
+line-3`;
+		const expected = `|A7     |B7     |
+line-1
+|C7     |D7     |
+|E7     |F7     |`;
+		const rendered = renderSongText(unlabeled, {
+			chartType: 'chordsFirstLyricLine',
+			alignBars: true,
+		});
+		expect(toText(rendered)).toBe(expected);
+	});
+
 	test('= "lyrics"', () => {
 		const expected = `Verse 1
 v1-line-1

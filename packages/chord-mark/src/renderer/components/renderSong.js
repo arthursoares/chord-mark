@@ -102,7 +102,9 @@ export default function renderSong(
 		...chordDefinitions,
 	};
 
-	let isFirstLyricLineOfSection = false;
+	// starts true so a song (or leading block) without any section label
+	// still keeps its first lyric line with chartType 'chordsFirstLyricLine'
+	let isFirstLyricLineOfSection = true;
 	let contextTimeSignature = defaultTimeSignature.string;
 	let previousBarTimeSignature;
 

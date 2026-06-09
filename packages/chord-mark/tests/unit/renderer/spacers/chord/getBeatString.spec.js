@@ -196,7 +196,9 @@ describe('getBeatString()', () => {
 		],
 
 		[
-			'roman symbols (all to "I" since no key is defined)',
+			// without a key declaration, numerals are computed against the
+			// auto-detected key (out-of-key chords render as "?")
+			'roman symbols (analyzed against the auto-detected key)',
 			'A. [C Am G C] B..',
 			2,
 			{
@@ -204,7 +206,7 @@ describe('getBeatString()', () => {
 				shouldPrintChordDuration: true,
 				shouldPrintSubBeatDelimiters: true,
 			},
-			'[I i I I]',
+			'[? ? ♭VI ?]',
 		],
 	])('getBeatString(): %s', (title, input, beat, options, output) => {
 		test('returns the correct beat string', () => {

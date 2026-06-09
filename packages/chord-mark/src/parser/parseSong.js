@@ -9,6 +9,8 @@ import getAllChordDefinitions from './getAllChordDefinitions';
 import getAllChordsInSong from './getAllChordsInSong';
 import getAllKeysInSong from './getAllKeysInSong';
 import getComposerInSong from './getComposerInSong';
+import lineTypes from './lineTypes';
+import parseChord from './parseChord';
 
 /**
  * @typedef {Object} Song
@@ -58,6 +60,7 @@ export default function parseSong(songSrc, { windowObject } = {}) {
 	const allLines = songLines.asArray();
 	const allChords = getAllChordsInSong(allLines);
 	const allKeys = getAllKeysInSong(allLines, allChords);
+	applyAutoKeyToNumerals(allLines, allKeys);
 	const chordDefinitions = getAllChordDefinitions(allLines);
 	const composer = getComposerInSong(allLines);
 
@@ -68,4 +71,38 @@ export default function parseSong(songSrc, { windowObject } = {}) {
 		chordDefinitions,
 		composer,
 	};
+}
+
+/**
+ * Chord numerals are computed when each chord line is parsed, at which point
+ * only an explicitly declared key is known. When the song has no explicit key
+ * but one could be auto-detected, recompute the numerals against the detected
+ * key — otherwise every chord is analyzed against its own root (e.g. all
+ * minor chords render as "i" with symbolType: 'roman').
+ * Only the numeral is replaced: the rest of the chord model does not depend
+ * on the key.
+ * @param {SongLine[]} allLines
+ * @param {SongKeys} allKeys
+ */
+function applyAutoKeyToNumerals(allLines, allKeys) {
+	if (!allKeys.auto) return;
+
+	allLines
+		.filter((line) => line.type === lineTypes.CHORD)
+		.forEach((line) => {
+			line.model.allBars.forEach((bar) => {
+				bar.allChords.forEach((chord) => {
+					if (
+						chord.model &&
+						typeof chord.model === 'object' &&
+						chord.model.input
+					) {
+						chord.model.numeral = parseChord(
+							chord.model.input.symbol,
+							allKeys.auto
+						).numeral;
+					}
+				});
+			});
+		});
 }
